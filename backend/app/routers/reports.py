@@ -57,6 +57,15 @@ async def nearby(
     return await svc.nearby_reports(session, lat, lon, radius_m)
 
 
+@router.get("/reports/{report_id}", response_model=ReportOut)
+async def get_report(
+    report_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ReportOut:
+    return await svc.get_report(session, report_id)
+
+
 @router.post("/reports/{report_id}/vote", response_model=ReportOut)
 async def vote(
     report_id: int,

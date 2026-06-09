@@ -79,6 +79,7 @@ Tutte le risposte JSON. Auth via header `Authorization: Bearer <jwt>`.
 | GET    | `/categories`          | Lista chiusa categorie (chiave, label, colore, TTL) |
 | POST   | `/reports`             | Crea segnalazione (`category, note?, lat, lon`) |
 | GET    | `/reports/nearby`      | Segnalazioni attive (`lat, lon, radius_m`)    |
+| GET    | `/reports/{id}`        | Dettaglio di una segnalazione (deep link)     |
 | POST   | `/reports/{id}/vote`   | Vota (`+1` conferma / `-1` smentita)          |
 | GET    | `/reports/stream`      | SSE: eventi live (`created`/`updated`/`removed`) |
 | PUT    | `/users/push-token`    | Registra l'Expo push token                    |
@@ -159,6 +160,32 @@ docker-compose.yml     # api + postgis + proxy
 scripts/smoke_test.sh  # smoke test end-to-end via curl
 ```
 
+## Mobile (Expo)
+
+App React Native con **Expo SDK 52** + **expo-router** (TypeScript), in
+[`mobile/`](mobile/). Schermate: Auth (login/registrazione), Onboarding con
+disclaimer, Mappa (`react-native-maps`: posizione utente, raggio di ricerca,
+marker colorati per categoria, countdown TTL, aggiornamenti live via SSE),
+Crea segnalazione (categoria da lista chiusa + pin trascinabile + nota),
+Dettaglio (conferma / "non c'è più"). Stato di auth via React Context; JWT
+persistito in `expo-secure-store`.
+
+```bash
+cd mobile
+npm install
+cp .env.example .env          # imposta EXPO_PUBLIC_API_URL (IP LAN su device fisico)
+npm run start                 # apri con Expo Go o un emulatore
+npm run typecheck             # tsc --noEmit
+```
+
+Note:
+- Su **device fisico** `localhost` non raggiunge il backend: usa l'IP LAN
+  della macchina che esegue Docker (es. `http://192.168.1.42:8000`).
+- I **marker su Android** richiedono una Google Maps API key in
+  `app.json` (`android.config.googleMaps.apiKey`). Su iOS usano Apple Maps.
+- Il client SSE (`lib/api.ts`) ha **fallback automatico a polling** di
+  `/reports/nearby` se lo stream non regge (come da brief).
+
 ## Stato e prossimi passi
 
 - ✅ **M1** — Backend core: PostGIS, modelli, migrazioni, auth JWT,
@@ -167,10 +194,13 @@ scripts/smoke_test.sh  # smoke test end-to-end via curl
   prossimità, job di scadenza APScheduler.
 - ✅ **M3** — SSE `/reports/stream` con broker in-memory; fallback polling
   documentato.
-- ⬜ **M4** — Mobile Expo (auth, mappa, marker per categoria, creazione/voto,
-  disclaimer onboarding).
-- ⬜ **M5** — Push Expo dietro flag, gestione permessi posizione,
-  retention/cancellazione dati scaduti.
+- ✅ **M4** — Mobile Expo (auth, mappa con marker per categoria + countdown
+  TTL, creazione con pin trascinabile, voto, disclaimer in onboarding). Vedi
+  [`mobile/`](#mobile-expo).
+- ⬜ **M5** — Push Expo dietro flag (backend già pronto: `PUSH_ENABLED` +
+  `PUT /users/push-token`; manca la registrazione del token lato app e lo
+  storage posizione), gestione permessi posizione, retention/cancellazione
+  dati scaduti.
 - ⬜ **M6** — Pre-rilascio: vedi sotto.
 
 ## ⚠️ Da completare PRIMA del rilascio pubblico

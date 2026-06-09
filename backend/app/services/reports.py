@@ -199,6 +199,18 @@ async def _report_coords(session: AsyncSession, report_id: int) -> tuple[float, 
     return (row["lat"], row["lon"]) if row else (0.0, 0.0)
 
 
+async def get_report(session: AsyncSession, report_id: int) -> ReportOut:
+    """Singola segnalazione per id (qualunque status, per dettaglio/deep link)."""
+    report = await session.get(Report, report_id)
+    if report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="segnalazione inesistente",
+        )
+    lat, lon = await _report_coords(session, report_id)
+    return report_to_out(report, lat, lon)
+
+
 async def vote_report(
     session: AsyncSession, user: User, report_id: int, vote: int
 ) -> ReportOut:
