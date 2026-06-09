@@ -1,0 +1,30 @@
+# Segreti — MAI committare (l'autore ha già subito un compromesso da .env esposto)
+.env
+*.env
+!.env.example
+backend/.env
+mobile/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / Expo
+node_modules/
+.expo/
+dist/
+web-build/
+npm-debug.*
+yarn-error.*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
