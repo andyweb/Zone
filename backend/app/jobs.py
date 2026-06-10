@@ -50,6 +50,32 @@ async def expire_reports() -> None:
         )
 
 
+async def purge_old_reports() -> None:
+    """Retention/GDPR (sezione 8): CANCELLA (non solo marca) le segnalazioni
+    scadute o rimosse più vecchie della finestra di retention. I voti collegati
+    spariscono per ON DELETE CASCADE. Minimizzazione dei dati: nulla resta in
+    archivio oltre il necessario.
+    """
+    async with SessionLocal() as session:
+        result = await session.execute(
+            text(
+                """
+                DELETE FROM reports
+                WHERE status IN ('expired', 'removed')
+                  AND expires_at < now() - make_interval(mins => :age)
+                """
+            ),
+            {"age": settings.retention_delete_after_minutes},
+        )
+        await session.commit()
+
+    if result.rowcount:
+        logger.info(
+            "retention: %d segnalazioni cancellate definitivamente",
+            result.rowcount,
+        )
+
+
 def start_scheduler() -> None:
     scheduler.add_job(
         expire_reports,
@@ -59,10 +85,19 @@ def start_scheduler() -> None:
         replace_existing=True,
         max_instances=1,
     )
+    scheduler.add_job(
+        purge_old_reports,
+        "interval",
+        minutes=settings.retention_job_interval_minutes,
+        id="purge_old_reports",
+        replace_existing=True,
+        max_instances=1,
+    )
     scheduler.start()
     logger.info(
-        "scheduler avviato: scadenza ogni %d min",
+        "scheduler avviato: scadenza ogni %d min, retention ogni %d min",
         settings.expiry_job_interval_minutes,
+        settings.retention_job_interval_minutes,
     )
 
 

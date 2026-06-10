@@ -38,7 +38,7 @@ async def create_report(
     out = await svc.create_report(
         session, user, payload.category, payload.note, payload.lat, payload.lon
     )
-    await notify_nearby_users(session, out)
+    await notify_nearby_users(session, out, exclude_user_id=user.id)
     return out
 
 

@@ -1,12 +1,12 @@
 """Notifiche push via Expo (sezione 5.3) — dietro flag (push_enabled).
 
-PRIVACY (sezione 8): per inviare push agli utenti "vicini" servirebbe
-memorizzare l'ultima posizione nota dell'utente. Questa è una scelta con
-implicazioni GDPR e va valutata prima di abilitare la feature in produzione.
-Per ora la funzione è dietro flag e, finché non si decide il modello di
-storage della posizione, invia (al più) agli utenti con un push token
-registrato senza filtro geografico server-side. Lasciata pronta per il
-filtro per raggio quando la posizione utente sarà disponibile.
+Filtro geografico server-side: si inviano push solo agli utenti la cui ULTIMA
+posizione nota cade entro `push_radius_m` dalla segnalazione e non è più vecchia
+di `push_location_max_age_minutes`. L'autore della segnalazione è escluso.
+
+PRIVACY (sezione 8): la posizione utente è memorizzata come singolo punto
+sovrascritto (vedi models.User.last_location), facoltativo e azzerabile dal
+client. Senza posizione nota recente l'utente non riceve push.
 """
 
 from __future__ import annotations
@@ -14,25 +14,52 @@ from __future__ import annotations
 import logging
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
-from ..models import User
 from ..schemas import ReportOut
 
 logger = logging.getLogger(__name__)
 
 
-async def notify_nearby_users(session: AsyncSession, report: ReportOut) -> None:
+async def notify_nearby_users(
+    session: AsyncSession,
+    report: ReportOut,
+    exclude_user_id: int | None = None,
+) -> None:
     if not settings.push_enabled:
         return
 
-    tokens = (
-        await session.scalars(
-            select(User.expo_push_token).where(User.expo_push_token.is_not(None))
+    rows = (
+        await session.execute(
+            text(
+                """
+                SELECT expo_push_token
+                FROM users
+                WHERE expo_push_token IS NOT NULL
+                  AND last_location IS NOT NULL
+                  AND last_location_at >
+                        now() - make_interval(mins => :max_age)
+                  AND (:exclude_id IS NULL OR id <> :exclude_id)
+                  AND ST_DWithin(
+                        last_location,
+                        ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography,
+                        :radius_m
+                  )
+                """
+            ),
+            {
+                "max_age": settings.push_location_max_age_minutes,
+                "exclude_id": exclude_user_id,
+                "lat": report.lat,
+                "lon": report.lon,
+                "radius_m": settings.push_radius_m,
+            },
         )
-    ).all()
+    ).scalars().all()
+
+    tokens = [t for t in rows if t]
     if not tokens:
         return
 

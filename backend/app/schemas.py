@@ -77,6 +77,11 @@ class PushTokenIn(BaseModel):
     expo_push_token: str = Field(min_length=1, max_length=255)
 
 
+class LocationIn(BaseModel):
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+
+
 # --- Categorie (esposte al client per colori/etichette/TTL) ---
 class CategoryOut(BaseModel):
     key: str

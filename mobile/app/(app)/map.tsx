@@ -4,6 +4,7 @@
 
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -20,6 +21,7 @@ import { Countdown } from "../../components/Countdown";
 import * as api from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { DEFAULT_RADIUS_M } from "../../lib/config";
+import { registerForPushNotificationsAsync } from "../../lib/push";
 import type { Category, Report, SSEReportEvent } from "../../lib/types";
 
 export default function MapScreen() {
@@ -60,6 +62,38 @@ export default function MapScreen() {
   useEffect(() => {
     api.getCategories().then(setCategories).catch(() => {});
   }, []);
+
+  // 2b) push: registra il token Expo e inoltralo al backend (M5).
+  // Best-effort: senza permesso/token l'app resta usabile senza notifiche.
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      const pushToken = await registerForPushNotificationsAsync();
+      if (pushToken) {
+        try {
+          await api.setPushToken(token, pushToken);
+        } catch {
+          // niente push: non blocca l'uso dell'app
+        }
+      }
+    })();
+  }, [token]);
+
+  // 2c) posizione → backend, solo per filtrare le push per raggio (privacy:
+  // singolo punto sovrascritto, azzerato al logout). Best-effort.
+  useEffect(() => {
+    if (!token || !coords) return;
+    api.updateLocation(token, coords.lat, coords.lon).catch(() => {});
+  }, [token, coords]);
+
+  // 2d) tap su una notifica push → apri il dettaglio della segnalazione.
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
+      const id = resp.notification.request.content.data?.report_id;
+      if (id != null) router.push(`/report/${id}`);
+    });
+    return () => sub.remove();
+  }, [router]);
 
   const applyEvent = useCallback((ev: SSEReportEvent) => {
     setReports((prev) => {

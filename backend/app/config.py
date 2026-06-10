@@ -57,7 +57,17 @@ class Settings(BaseSettings):
     # --- Push (sezione 5.3) — dietro flag, implementata dopo il core ---
     push_enabled: bool = False
     push_radius_m: int = 1500
+    # Non inviare push verso una posizione "stantia": se l'ultima posizione
+    # nota dell'utente è più vecchia di questo, lo si esclude (privacy + rumore).
+    push_location_max_age_minutes: int = 60
     expo_push_url: str = "https://exp.host/--/api/v2/push/send"
+
+    # --- Retention / GDPR (sezione 8) ---
+    # Le segnalazioni scadute/rimosse vengono CANCELLATE (non solo marcate)
+    # dopo questa finestra: minimizzazione dei dati. La finestra dà tempo ai
+    # client di riconciliare lo stato prima della cancellazione definitiva.
+    retention_delete_after_minutes: int = 24 * 60  # 24h dopo la scadenza
+    retention_job_interval_minutes: int = 60
 
     # --- SSE ---
     sse_keepalive_seconds: int = 15

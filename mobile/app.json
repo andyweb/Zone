@@ -36,7 +36,8 @@
         {
           "locationWhenInUsePermission": "L'app usa la tua posizione per mostrarti le segnalazioni vicine."
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "extra": {
       "router": {

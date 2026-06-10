@@ -5,10 +5,10 @@ gli utenti creano segnalazioni con un punto e una categoria, le vedono sulla
 mappa nelle vicinanze, le confermano/smentiscono, e le segnalazioni nascono,
 vivono un TTL e scadono (mappa sempre aggiornata, anti-archivio statico).
 
-Questo repository implementa le milestone **M1–M3** del brief tecnico
-(backend core + voto/anti-abuso/TTL + realtime SSE). Le milestone M4 (mobile
-Expo), M5 (push) e M6 (legale/categorie definitive) sono da completare — vedi
-[Stato e prossimi passi](#stato-e-prossimi-passi).
+Questo repository implementa le milestone **M1–M5** del brief tecnico
+(backend core + voto/anti-abuso/TTL + realtime SSE + mobile Expo + push
+geolocalizzate e retention dati). La milestone M6 (legale/categorie definitive)
+è da completare — vedi [Stato e prossimi passi](#stato-e-prossimi-passi).
 
 ## Stack
 
@@ -62,6 +62,8 @@ Vedi `backend/.env.example`. Le principali:
 | `DATABASE_URL` | URL async (`postgresql+asyncpg://…`)                    |
 | `JWT_SECRET`   | **Obbligatorio cambiare.** Firma i token JWT.           |
 | `PUSH_ENABLED` | Flag notifiche push Expo (default `false`)              |
+| `PUSH_RADIUS_M`| Raggio (m) entro cui notificare gli utenti vicini       |
+| `RETENTION_DELETE_AFTER_MINUTES` | Finestra dopo cui i report scaduti/rimossi sono cancellati (default 24h) |
 | `DEBUG`        | Log SQL verboso                                         |
 
 > **Segreti:** `.env` è in `.gitignore` fin dal primo commit. Non committare
@@ -83,6 +85,8 @@ Tutte le risposte JSON. Auth via header `Authorization: Bearer <jwt>`.
 | POST   | `/reports/{id}/vote`   | Vota (`+1` conferma / `-1` smentita)          |
 | GET    | `/reports/stream`      | SSE: eventi live (`created`/`updated`/`removed`) |
 | PUT    | `/users/push-token`    | Registra l'Expo push token                    |
+| DELETE | `/users/push-token`    | Disattiva push + azzera posizione (logout)    |
+| PUT    | `/users/location`      | Aggiorna l'ultima posizione (solo filtro push) |
 | GET    | `/health`              | Healthcheck                                   |
 
 ### SSE (`/reports/stream`)
@@ -121,6 +125,20 @@ Tutti i parametri (TTL, soglie, raggi, rate limit) sono centralizzati in
 - **Job di scadenza** (`jobs.py`): APScheduler ogni 5 min marca `expired` le
   segnalazioni attive scadute e pubblica l'evento SSE `removed`. Le letture
   filtrano comunque per `status='active' AND expires_at > now()`.
+- **Retention / minimizzazione dati** (`jobs.py`, sezione 8): un secondo job
+  (ogni `retention_job_interval_minutes`) **cancella definitivamente** le
+  segnalazioni `expired`/`removed` più vecchie di
+  `retention_delete_after_minutes` (default 24h); i voti collegati spariscono
+  per `ON DELETE CASCADE`. Niente archivio statico oltre il necessario.
+
+### Push geolocalizzate (sezione 5.3)
+
+Dietro flag `PUSH_ENABLED`. Alla creazione di una segnalazione il backend
+notifica via Expo **solo** gli utenti la cui ultima posizione nota cade entro
+`PUSH_RADIUS_M` ed è recente (`push_location_max_age_minutes`); l'autore è
+escluso. La posizione è memorizzata come **singolo punto sovrascritto**
+(`users.last_location`), facoltativa e **azzerata al logout** (`DELETE
+/users/push-token`). Senza posizione recente l'utente non riceve push.
 
 ## Test
 
@@ -185,6 +203,11 @@ Note:
   `app.json` (`android.config.googleMaps.apiKey`). Su iOS usano Apple Maps.
 - Il client SSE (`lib/api.ts`) ha **fallback automatico a polling** di
   `/reports/nearby` se lo stream non regge (come da brief).
+- **Push** (`lib/push.ts`): all'avvio l'app chiede il permesso notifiche,
+  ottiene l'Expo push token e lo registra (`PUT /users/push-token`); invia la
+  posizione (`PUT /users/location`) solo per il filtro per raggio. Il tap sulla
+  notifica apre il dettaglio della segnalazione. Le push richiedono
+  `PUSH_ENABLED=true` lato backend; senza permesso l'app resta usabile.
 
 ## Stato e prossimi passi
 
@@ -197,10 +220,11 @@ Note:
 - ✅ **M4** — Mobile Expo (auth, mappa con marker per categoria + countdown
   TTL, creazione con pin trascinabile, voto, disclaimer in onboarding). Vedi
   [`mobile/`](#mobile-expo).
-- ⬜ **M5** — Push Expo dietro flag (backend già pronto: `PUSH_ENABLED` +
-  `PUT /users/push-token`; manca la registrazione del token lato app e lo
-  storage posizione), gestione permessi posizione, retention/cancellazione
-  dati scaduti.
+- ✅ **M5** — Push Expo dietro flag con **filtro geografico server-side**
+  (`PUSH_RADIUS_M`), registrazione del token lato app + permesso notifiche,
+  storage posizione utente (`PUT /users/location`, singolo punto sovrascritto,
+  azzerato al logout), tap notifica → dettaglio, e **retention** che cancella i
+  dati scaduti/rimossi (job in `jobs.py`).
 - ⬜ **M6** — Pre-rilascio: vedi sotto.
 
 ## ⚠️ Da completare PRIMA del rilascio pubblico
@@ -214,9 +238,10 @@ inventate (come da brief, sezioni 7–8):
   resti una lista chiusa: per cambiarle basta modificare quel file.
 - **Conformità legale e moderazione** (brief, sezione 8) — **non opzionale**
   per un'app pubblica:
-  - GDPR: informativa privacy, base giuridica, minimizzazione e policy di
-    retention; le segnalazioni scadute/rimosse andranno **cancellate o
-    anonimizzate** (oggi sono solo marcate — da implementare in M5).
+  - GDPR: informativa privacy, base giuridica e ToS restano da redigere. La
+    **minimizzazione/retention** è già attiva (M5): le segnalazioni
+    scadute/rimosse vengono cancellate dal job in `jobs.py`. Resta da valutare
+    la **cancellazione account** su richiesta dell'utente (diritto all'oblio).
   - Sistema di segnalazione abusi ("report" di un report) e moderazione.
   - **Disclaimer in-app obbligatorio**: l'app non sostituisce le autorità né i
     numeri di emergenza (112/113/115) — da mostrare in onboarding e creazione.

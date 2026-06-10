@@ -63,6 +63,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    // Best-effort: disattiva le push e azzera la posizione lato server prima
+    // di scartare il token (privacy: niente dati orfani dopo il logout).
+    try {
+      const stored = await SecureStore.getItemAsync(TOKEN_KEY);
+      if (stored) await api.clearPushToken(stored);
+    } catch {
+      // se la rete fallisce, procediamo comunque col logout locale
+    }
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     setToken(null);
   }, []);

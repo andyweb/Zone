@@ -114,6 +114,24 @@ export function setPushToken(token: string, expoPushToken: string): Promise<User
   });
 }
 
+// Disattiva le push e azzera l'ultima posizione nota (es. al logout).
+export function clearPushToken(token: string): Promise<void> {
+  return request<void>("/users/push-token", { method: "DELETE", token });
+}
+
+// Aggiorna l'ultima posizione nota lato server (solo per filtrare le push).
+export function updateLocation(
+  token: string,
+  lat: number,
+  lon: number,
+): Promise<void> {
+  return request<void>("/users/location", {
+    method: "PUT",
+    body: { lat, lon },
+    token,
+  });
+}
+
 // --- Realtime (SSE) con fallback polling ---
 export interface StreamHandlers {
   onEvent: (event: SSEReportEvent) => void;

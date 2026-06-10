@@ -35,6 +35,15 @@ class User(Base):
         Numeric, nullable=False, server_default="1.0"
     )
     expo_push_token: Mapped[str | None] = mapped_column(String(255))
+    # Ultima posizione nota: usata SOLO per filtrare le push per raggio
+    # (sezione 5.3). Scelta GDPR: facoltativa, sovrascritta (non storicizzata)
+    # e azzerata al logout / con la cancellazione del push token.
+    last_location: Mapped[object | None] = mapped_column(
+        Geography(geometry_type="POINT", srid=4326), nullable=True
+    )
+    last_location_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     reports: Mapped[list["Report"]] = relationship(back_populates="user")
 

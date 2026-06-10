@@ -40,4 +40,20 @@ echo "== nearby =="
 curl -fsS "$BASE_URL/reports/nearby?lat=$LAT&lon=$LON&radius_m=1000" \
   -H "Authorization: Bearer $TOKEN"; echo
 
+echo "== push token (M5) =="
+curl -fsS -X PUT "$BASE_URL/users/push-token" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"expo_push_token":"ExponentPushToken[smoke-test]"}'; echo
+
+echo "== posizione (M5) =="
+curl -fsS -o /dev/null -w '%{http_code}\n' -X PUT "$BASE_URL/users/location" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d "{\"lat\":$LAT,\"lon\":$LON}"   # atteso: 204
+
+echo "== logout: disattiva push + azzera posizione (M5) =="
+curl -fsS -o /dev/null -w '%{http_code}\n' -X DELETE "$BASE_URL/users/push-token" \
+  -H "Authorization: Bearer $TOKEN"   # atteso: 204
+
 echo "== smoke test OK (report id=$RID) =="
