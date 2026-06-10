@@ -4,21 +4,25 @@
 #   docker compose -f docker-compose.yml -f docker-compose.dgx.yml up -d --build
 #
 # Differenze rispetto al compose base:
-#  - le porte sono legate a 127.0.0.1: solo cloudflared (stesso host) le
-#    raggiunge, niente esposizione sulla rete della DGX;
+#  - immagine PostGIS nativa arm64 (la DGX Spark ha CPU ARM; l'immagine
+#    ufficiale postgis/postgis è solo amd64 e dà "exec format error");
+#  - porte di Zone su 18000/18080 per non collidere con altri servizi già
+#    presenti sulla DGX (es. l'8080 è occupato), e legate a 127.0.0.1: solo
+#    cloudflared (stesso host) le raggiunge;
 #  - il DB non pubblica nessuna porta sull'host (resta interno alla rete compose);
 #  - restart automatico al boot / dopo crash.
 services:
   db:
+    image: imresamu/postgis:16-3.4
     restart: unless-stopped
     ports: !override []
 
   api:
     restart: unless-stopped
     ports: !override
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:18000:8000"
 
   proxy:
     restart: unless-stopped
     ports: !override
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:18080:80"

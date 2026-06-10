@@ -31,7 +31,7 @@ openssl rand -hex 32
 docker compose -f docker-compose.yml -f docker-compose.dgx.yml up -d --build
 
 # verifica locale
-curl http://localhost:8080/health   # -> {"status":"ok"}
+curl http://localhost:18080/health   # -> {"status":"ok"}
 ```
 
 > Il DB persiste nel volume `pgdata`. Per fermare tutto:
@@ -72,7 +72,7 @@ credentials-file: /home/<USER>/.cloudflared/<TUNNEL_ID>.json
 ingress:
   # tutto ciò che arriva su zone.delibra.info va al proxy nginx locale
   - hostname: zone.delibra.info
-    service: http://localhost:8080
+    service: http://localhost:18080
   # regola di chiusura obbligatoria
   - service: http_status:404
 ```
