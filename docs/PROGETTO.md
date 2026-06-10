@@ -255,7 +255,7 @@ backend/
   app/
     main.py            # FastAPI app, router, lifespan (scheduler)
     config.py          # TUTTI i parametri (TTL, soglie, raggi, rate limit)
-    categories.py      # lista CHIUSA categorie (PLACEHOLDER — vedi §12)
+    categories.py      # lista CHIUSA categorie (set reale — vedi §12)
     db.py              # engine async, sessione
     models.py          # SQLAlchemy + GeoAlchemy2
     schemas.py         # Pydantic
@@ -342,10 +342,11 @@ Milestone implementate:
 - ⬜ **M6** — Pre-rilascio (sotto).
 
 ### ⚠️ Da completare prima della pubblicazione sugli store
-- **Categorie** (`backend/app/categories.py`): i valori attuali
-  (`esempio_a/b/c`) sono **placeholder fittizi**. La lista definitiva è una
-  decisione di prodotto con implicazioni legali; il sistema regge qualunque set
-  purché resti una lista chiusa (basta editare quel file).
+- **Categorie** (`backend/app/categories.py`): set di default reale (Incidente,
+  Traffico, Lavori, Pericolo, Strada chiusa, Evento, Allerta meteo). La lista
+  definitiva resta una decisione di prodotto con implicazioni legali, da
+  validare per la giurisdizione (evitando categorie sensibili); il sistema regge
+  qualunque set purché resti una lista chiusa (basta editare quel file).
 - **Conformità legale / moderazione** (non opzionale per app pubblica):
   - GDPR: informativa privacy, base giuridica, ToS; **cancellazione account**
     su richiesta (la minimizzazione/retention è già attiva).

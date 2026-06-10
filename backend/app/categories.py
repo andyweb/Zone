@@ -1,14 +1,15 @@
 """Lista CHIUSA delle categorie di segnalazione.
 
-ATTENZIONE — PLACEHOLDER (vedi brief, sezione 7).
-Le categorie qui sotto sono valori di ESEMPIO/fittizi: chiave tecnica,
-etichetta visibile, colore mappa e TTL base. La scelta definitiva è una
-decisione di prodotto dell'autore con implicazioni legali dirette
-(vedi sezione 8 del brief) e va presa PRIMA del rilascio pubblico.
+Set di default "reale" per un'app di segnalazioni live locali (mobilità,
+sicurezza, civico): chiave tecnica, etichetta visibile, colore marker sulla
+mappa e TTL base alla creazione.
 
-Il sistema è progettato per reggere qualunque set, purché resti una lista
-chiusa (enum). Per cambiare le categorie basta modificare questo dizionario:
-nessun altro punto del codice contiene categorie hard-coded.
+NB: la scelta definitiva resta una decisione di prodotto con implicazioni
+legali (vedi brief, sezione 8) — va validata prima del rilascio pubblico,
+evitando categorie sensibili per la giurisdizione di destinazione. Il sistema
+regge qualunque set purché resti una lista chiusa (enum): per cambiarle basta
+modificare questo dizionario, nessun'altra parte del codice contiene categorie
+hard-coded.
 """
 
 from __future__ import annotations
@@ -22,11 +23,14 @@ class CategorySpec(TypedDict):
     ttl_minutes: int    # TTL base alla creazione
 
 
-# NB: valori fittizi, DA RIMPIAZZARE prima del rilascio.
 CATEGORIES: dict[str, CategorySpec] = {
-    "esempio_a": {"label": "Esempio A", "color": "#E24B4A", "ttl_minutes": 180},
-    "esempio_b": {"label": "Esempio B", "color": "#EF9F27", "ttl_minutes": 360},
-    "esempio_c": {"label": "Esempio C", "color": "#3B82C4", "ttl_minutes": 90},
+    "incidente": {"label": "Incidente", "color": "#E2483F", "ttl_minutes": 120},
+    "traffico": {"label": "Traffico", "color": "#EF7A27", "ttl_minutes": 90},
+    "lavori": {"label": "Lavori in corso", "color": "#F4B400", "ttl_minutes": 480},
+    "pericolo": {"label": "Pericolo", "color": "#B5341F", "ttl_minutes": 180},
+    "viabilita": {"label": "Strada chiusa", "color": "#8A5BD6", "ttl_minutes": 240},
+    "evento": {"label": "Evento / assembramento", "color": "#2F8FD6", "ttl_minutes": 240},
+    "meteo": {"label": "Allerta meteo", "color": "#1B9E8A", "ttl_minutes": 360},
 }
 
 CATEGORY_KEYS: frozenset[str] = frozenset(CATEGORIES.keys())

@@ -141,7 +141,7 @@ TOKEN=$(curl -s -X POST $BASE/auth/login -H 'Content-Type: application/json' \
 # crea una segnalazione vicino a te -> appare sulla mappa in tempo reale
 curl -s -X POST $BASE/reports -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"category":"esempio_a","note":"arrivata via SSE!","lat":LAT,"lon":LON}'
+  -d '{"category":"incidente","note":"arrivata via SSE!","lat":LAT,"lon":LON}'
 ```
 
 Sul telefono il nuovo marker deve comparire **da solo**. Se invece voti una
@@ -172,7 +172,7 @@ conferme/smentite aggiornarsi live nel dettaglio.
 - Il client SSE (`mobile/lib/api.ts`) ha **fallback automatico a polling** di
   `/reports/nearby` ogni ~20s se lo stream non regge: anche senza realtime
   perfetto, la mappa si riconcilia.
-- Le categorie mostrate (`Esempio A/B/C`) sono **placeholder**: si cambiano in
-  `backend/app/categories.py` (un solo file).
+- Le categorie (Incidente, Traffico, Lavori, Pericolo, Strada chiusa, Evento,
+  Allerta meteo) si cambiano in `backend/app/categories.py` (un solo file).
 - Per fermare tutto: `Ctrl-C` nel terminale di `docker compose` e in quello di
   Expo; poi `docker compose down` per liberare le risorse.

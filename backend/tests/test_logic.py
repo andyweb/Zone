@@ -13,9 +13,9 @@ from app.services.reports import _clamp_expiry, _now
 
 
 def test_categorie_lista_chiusa():
-    assert is_valid_category("esempio_a")
+    assert is_valid_category("incidente")
     assert not is_valid_category("categoria_inventata")
-    assert ttl_minutes_for("esempio_a") > 0
+    assert ttl_minutes_for("incidente") > 0
 
 
 def test_clamp_expiry_floor():

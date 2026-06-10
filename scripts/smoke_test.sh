@@ -32,7 +32,7 @@ echo "== crea report =="
 REPORT=$(curl -fsS -X POST "$BASE_URL/reports" \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
-  -d "{\"category\":\"esempio_a\",\"note\":\"test\",\"lat\":$LAT,\"lon\":$LON}")
+  -d "{\"category\":\"incidente\",\"note\":\"test\",\"lat\":$LAT,\"lon\":$LON}")
 echo "$REPORT"
 RID=$(echo "$REPORT" | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
 

@@ -232,10 +232,12 @@ Note:
 Queste parti sono **placeholder / decisioni dell'autore** e non sono state
 inventate (come da brief, sezioni 7–8):
 
-- **Categorie** (`backend/app/categories.py`): i valori attuali
-  (`esempio_a/b/c`) sono **fittizi**. La lista definitiva è una decisione di
-  prodotto con implicazioni legali. Il sistema regge qualunque set purché
-  resti una lista chiusa: per cambiarle basta modificare quel file.
+- **Categorie** (`backend/app/categories.py`): set di default reale
+  (Incidente, Traffico, Lavori, Pericolo, Strada chiusa, Evento, Allerta
+  meteo). La lista definitiva resta una decisione di prodotto con implicazioni
+  legali, da validare per la giurisdizione di destinazione (evitando categorie
+  sensibili). Il sistema regge qualunque set purché resti una lista chiusa:
+  per cambiarle basta modificare quel file.
 - **Conformità legale e moderazione** (brief, sezione 8) — **non opzionale**
   per un'app pubblica:
   - GDPR: informativa privacy, base giuridica e ToS restano da redigere. La
