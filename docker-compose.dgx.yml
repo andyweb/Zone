@@ -1,0 +1,24 @@
+# Override per il deploy su DGX dietro Cloudflare Tunnel.
+#
+# Uso:
+#   docker compose -f docker-compose.yml -f docker-compose.dgx.yml up -d --build
+#
+# Differenze rispetto al compose base:
+#  - le porte sono legate a 127.0.0.1: solo cloudflared (stesso host) le
+#    raggiunge, niente esposizione sulla rete della DGX;
+#  - il DB non pubblica nessuna porta sull'host (resta interno alla rete compose);
+#  - restart automatico al boot / dopo crash.
+services:
+  db:
+    restart: unless-stopped
+    ports: !override []
+
+  api:
+    restart: unless-stopped
+    ports: !override
+      - "127.0.0.1:8000:8000"
+
+  proxy:
+    restart: unless-stopped
+    ports: !override
+      - "127.0.0.1:8080:80"
