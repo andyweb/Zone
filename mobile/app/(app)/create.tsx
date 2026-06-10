@@ -4,24 +4,25 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import MapView, { Marker, MapPressEvent } from "react-native-maps";
+import MapView, { MapPressEvent, Marker } from "react-native-maps";
 
 import { CategoryPicker } from "../../components/CategoryPicker";
 import { Disclaimer } from "../../components/Disclaimer";
+import { Button } from "../../components/ui/Button";
+import { GradientBackground } from "../../components/ui/GradientBackground";
 import * as api from "../../lib/api";
 import { ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { colors, font, radius, shadow, spacing } from "../../lib/theme";
 import type { Category } from "../../lib/types";
 
 const NOTE_MAX = 280;
@@ -73,100 +74,112 @@ export default function CreateReport() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.flex}
-    >
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.label}>Categoria</Text>
-        <CategoryPicker
-          categories={categories}
-          selected={category}
-          onSelect={setCategory}
-        />
-
-        <Text style={styles.label}>Punto sulla mappa</Text>
-        <Text style={styles.hint}>
-          Tocca la mappa o trascina il pin per spostare il punto.
-        </Text>
-        <View style={styles.mapBox}>
-          <MapView
-            style={styles.map}
-            initialRegion={{
-              latitude: initialLat,
-              longitude: initialLon,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            }}
-            onPress={onMapPress}
-          >
-            <Marker
-              coordinate={{ latitude: point.lat, longitude: point.lon }}
-              draggable
-              onDragEnd={(e) =>
-                setPoint({
-                  lat: e.nativeEvent.coordinate.latitude,
-                  lon: e.nativeEvent.coordinate.longitude,
-                })
-              }
+    <GradientBackground variant="soft">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.flex}
+      >
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={styles.section}>
+            <Text style={styles.label}>Categoria</Text>
+            <CategoryPicker
+              categories={categories}
+              selected={category}
+              onSelect={setCategory}
             />
-          </MapView>
-        </View>
+          </View>
 
-        <Text style={styles.label}>Nota (opzionale)</Text>
-        <TextInput
-          style={styles.note}
-          placeholder="Aggiungi un dettaglio utile…"
-          value={note}
-          onChangeText={(t) => setNote(t.slice(0, NOTE_MAX))}
-          multiline
-          maxLength={NOTE_MAX}
-        />
-        <Text style={styles.counter}>
-          {note.length}/{NOTE_MAX}
-        </Text>
+          <View style={styles.section}>
+            <Text style={styles.label}>Punto sulla mappa</Text>
+            <Text style={styles.hint}>
+              Tocca la mappa o trascina il pin per spostare il punto.
+            </Text>
+            <View style={styles.mapBox}>
+              <MapView
+                style={styles.map}
+                initialRegion={{
+                  latitude: initialLat,
+                  longitude: initialLon,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                onPress={onMapPress}
+              >
+                <Marker
+                  coordinate={{ latitude: point.lat, longitude: point.lon }}
+                  draggable
+                  onDragEnd={(e) =>
+                    setPoint({
+                      lat: e.nativeEvent.coordinate.latitude,
+                      lon: e.nativeEvent.coordinate.longitude,
+                    })
+                  }
+                />
+              </MapView>
+            </View>
+          </View>
 
-        <Disclaimer compact />
+          <View style={styles.section}>
+            <Text style={styles.label}>Nota (opzionale)</Text>
+            <TextInput
+              style={styles.note}
+              placeholder="Aggiungi un dettaglio utile…"
+              placeholderTextColor={colors.textFaint}
+              value={note}
+              onChangeText={(t) => setNote(t.slice(0, NOTE_MAX))}
+              multiline
+              maxLength={NOTE_MAX}
+            />
+            <Text style={styles.counter}>
+              {note.length}/{NOTE_MAX}
+            </Text>
+          </View>
 
-        <Pressable
-          style={[styles.button, busy && { opacity: 0.6 }]}
-          onPress={submit}
-          disabled={busy}
-        >
-          {busy ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Invia segnalazione</Text>
-          )}
-        </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <Disclaimer compact />
+
+          <Button
+            label="Invia segnalazione"
+            icon="📍"
+            onPress={submit}
+            loading={busy}
+            style={styles.submit}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: "#fff" },
-  container: { padding: 18, gap: 10 },
-  label: { fontSize: 16, fontWeight: "700", marginTop: 8 },
-  hint: { color: "#777", fontSize: 13 },
-  mapBox: { height: 240, borderRadius: 12, overflow: "hidden" },
+  flex: { flex: 1 },
+  container: { padding: spacing.xl, gap: spacing.xl },
+  section: { gap: spacing.sm },
+  label: { fontSize: font.h3, fontWeight: "800", color: colors.text },
+  hint: { color: colors.textMuted, fontSize: font.small },
+  mapBox: {
+    height: 240,
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    ...shadow.card,
+  },
   map: { flex: 1 },
   note: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 10,
-    padding: 12,
-    minHeight: 80,
+    backgroundColor: colors.glassInput,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.glassBorder,
+    padding: spacing.lg,
+    minHeight: 96,
     textAlignVertical: "top",
-    fontSize: 15,
+    fontSize: font.body,
+    color: colors.text,
   },
-  counter: { alignSelf: "flex-end", color: "#999", fontSize: 12 },
-  button: {
-    backgroundColor: "#3B82C4",
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 8,
+  counter: {
+    alignSelf: "flex-end",
+    color: colors.textMuted,
+    fontSize: font.tiny,
   },
-  buttonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  submit: { marginTop: spacing.xs },
 });

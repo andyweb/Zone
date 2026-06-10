@@ -106,6 +106,24 @@ export function voteReport(
   });
 }
 
+// Modifica della nota (solo autore). Categoria/posizione/voti/TTL invariati.
+export function updateReportNote(
+  token: string,
+  reportId: number,
+  note: string | null,
+): Promise<Report> {
+  return request<Report>(`/reports/${reportId}`, {
+    method: "PATCH",
+    body: { note },
+    token,
+  });
+}
+
+// Eliminazione definitiva (solo autore).
+export function deleteReport(token: string, reportId: number): Promise<void> {
+  return request<void>(`/reports/${reportId}`, { method: "DELETE", token });
+}
+
 export function setPushToken(token: string, expoPushToken: string): Promise<User> {
   return request<User>("/users/push-token", {
     method: "PUT",

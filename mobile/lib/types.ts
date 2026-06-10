@@ -17,6 +17,7 @@ export interface Report {
   denials: number;
   status: "active" | "expired" | "removed";
   seconds_left: number;
+  is_mine?: boolean; // valorizzato nel dettaglio: true se sono l'autore
 }
 
 export interface User {

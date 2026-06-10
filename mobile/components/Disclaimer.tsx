@@ -4,10 +4,15 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { colors, font, radius, spacing } from "../lib/theme";
+
 export function Disclaimer({ compact = false }: { compact?: boolean }) {
   return (
     <View style={[styles.box, compact && styles.compact]}>
-      <Text style={styles.title}>⚠️ Avviso importante</Text>
+      <View style={styles.header}>
+        <Text style={styles.badge}>⚠️</Text>
+        <Text style={styles.title}>Avviso importante</Text>
+      </View>
       <Text style={styles.body}>
         Questa app non sostituisce le autorità né i numeri di emergenza. In caso
         di pericolo reale contatta i canali ufficiali: 112 / 113 / 115.
@@ -25,14 +30,16 @@ export function Disclaimer({ compact = false }: { compact?: boolean }) {
 
 const styles = StyleSheet.create({
   box: {
-    backgroundColor: "#FFF6E5",
-    borderColor: "#EF9F27",
+    backgroundColor: colors.warningSoft,
+    borderColor: colors.warning,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    gap: 8,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.sm,
   },
-  compact: { padding: 10 },
-  title: { fontWeight: "700", color: "#8A5A00", fontSize: 15 },
-  body: { color: "#5A4500", fontSize: 13, lineHeight: 18 },
+  compact: { padding: spacing.md },
+  header: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  badge: { fontSize: font.body },
+  title: { fontWeight: "800", color: colors.warningText, fontSize: font.small },
+  body: { color: colors.warningText, fontSize: font.tiny + 1, lineHeight: 19 },
 });

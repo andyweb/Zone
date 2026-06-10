@@ -3,6 +3,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { colors, font, radius, spacing } from "../lib/theme";
 import type { Category } from "../lib/types";
 
 interface Props {
@@ -22,8 +23,7 @@ export function CategoryPicker({ categories, selected, onSelect }: Props) {
             onPress={() => onSelect(c.key)}
             style={[
               styles.chip,
-              { borderColor: c.color },
-              active && { backgroundColor: c.color },
+              active && { backgroundColor: c.color, borderColor: c.color },
             ]}
           >
             <View style={[styles.dot, { backgroundColor: c.color }]} />
@@ -38,17 +38,19 @@ export function CategoryPicker({ categories, selected, onSelect }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  wrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 2,
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    gap: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
   },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  label: { fontSize: 15, fontWeight: "600", color: "#222" },
-  labelActive: { color: "#fff" },
+  label: { fontSize: font.small, fontWeight: "700", color: colors.text },
+  labelActive: { color: colors.white },
 });

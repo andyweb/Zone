@@ -16,9 +16,7 @@
       "bundleIdentifier": "com.andydiego.segnalazionilive",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "L'app usa la tua posizione per mostrarti le segnalazioni vicine e per crearne di nuove nel punto in cui ti trovi.",
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true
-        }
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

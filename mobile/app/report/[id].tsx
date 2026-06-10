@@ -1,5 +1,6 @@
-// Dettaglio segnalazione: categoria, nota, tempo residuo, pulsanti
-// "Confermo" / "Non c'è più" (voto +1 / -1).
+// Dettaglio segnalazione: categoria, nota, tempo residuo.
+// - Altri utenti: votano (Confermo / Non c'è più).
+// - Autore: modifica la nota o elimina la segnalazione.
 
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -9,14 +10,21 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 
 import { Countdown } from "../../components/Countdown";
+import { Button } from "../../components/ui/Button";
+import { GlassCard } from "../../components/ui/GlassCard";
+import { GradientBackground } from "../../components/ui/GradientBackground";
 import * as api from "../../lib/api";
 import { ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { colors, font, radius, spacing } from "../../lib/theme";
 import type { Category, Report } from "../../lib/types";
+
+const NOTE_MAX = 280;
 
 export default function ReportDetail() {
   const { token } = useAuth();
@@ -28,6 +36,11 @@ export default function ReportDetail() {
   const [category, setCategory] = useState<Category | null>(null);
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState(false);
+
+  const [editing, setEditing] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!token || Number.isNaN(reportId)) return;
@@ -53,11 +66,9 @@ export default function ReportDetail() {
       const updated = await api.voteReport(token, report.id, value);
       setReport(updated);
       if (updated.status !== "active") {
-        Alert.alert(
-          "Grazie",
-          "La segnalazione è stata rimossa dalla community.",
-          [{ text: "OK", onPress: () => router.back() }],
-        );
+        Alert.alert("Grazie", "La segnalazione è stata rimossa dalla community.", [
+          { text: "OK", onPress: () => router.back() },
+        ]);
       }
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Voto non riuscito";
@@ -67,112 +78,284 @@ export default function ReportDetail() {
     }
   };
 
+  const startEdit = () => {
+    setNoteText(report?.note ?? "");
+    setEditing(true);
+  };
+
+  const saveNote = async () => {
+    if (!token || !report) return;
+    setSaving(true);
+    try {
+      const updated = await api.updateReportNote(token, report.id, noteText.trim() || null);
+      setReport(updated);
+      setEditing(false);
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "Salvataggio non riuscito";
+      Alert.alert("Errore", msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmDelete = () => {
+    Alert.alert(
+      "Eliminare la segnalazione?",
+      "L'azione è definitiva: la segnalazione sparirà dalla mappa per tutti.",
+      [
+        { text: "Annulla", style: "cancel" },
+        { text: "Elimina", style: "destructive", onPress: removeReport },
+      ],
+    );
+  };
+
+  const removeReport = async () => {
+    if (!token || !report) return;
+    setDeleting(true);
+    try {
+      await api.deleteReport(token, report.id);
+      router.back();
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "Eliminazione non riuscita";
+      Alert.alert("Errore", msg);
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
+      <GradientBackground variant="soft">
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </GradientBackground>
     );
   }
   if (!report) return null;
 
   const active = report.status === "active";
+  const mine = report.is_mine === true;
+  const accent = category?.color ?? colors.textMuted;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View
-          style={[styles.dot, { backgroundColor: category?.color ?? "#888" }]}
-        />
-        <Text style={styles.category}>{category?.label ?? report.category}</Text>
-      </View>
+    <GradientBackground variant="soft">
+      <View style={styles.container}>
+        <View style={styles.content}>
+          <GlassCard strong>
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <View style={[styles.dot, { backgroundColor: accent }]} />
+                <Text style={styles.category}>
+                  {category?.label ?? report.category}
+                </Text>
+              </View>
+              {active ? (
+                <View style={styles.livePill}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveText}>LIVE</Text>
+                </View>
+              ) : null}
+            </View>
 
-      {report.note ? (
-        <Text style={styles.note}>{report.note}</Text>
-      ) : (
-        <Text style={styles.noteEmpty}>Nessuna nota.</Text>
-      )}
+            {editing ? (
+              <View style={styles.editBox}>
+                <TextInput
+                  style={styles.noteInput}
+                  placeholder="Aggiungi un dettaglio utile…"
+                  placeholderTextColor={colors.textFaint}
+                  value={noteText}
+                  onChangeText={(t) => setNoteText(t.slice(0, NOTE_MAX))}
+                  multiline
+                  maxLength={NOTE_MAX}
+                  autoFocus
+                />
+                <Text style={styles.counter}>
+                  {noteText.length}/{NOTE_MAX}
+                </Text>
+                <View style={styles.editActions}>
+                  <Button
+                    label="Annulla"
+                    variant="ghost"
+                    onPress={() => setEditing(false)}
+                    style={styles.editBtn}
+                  />
+                  <Button
+                    label="Salva"
+                    onPress={saveNote}
+                    loading={saving}
+                    style={styles.editBtn}
+                  />
+                </View>
+              </View>
+            ) : (
+              <>
+                {report.note ? (
+                  <Text style={styles.note}>{report.note}</Text>
+                ) : (
+                  <Text style={styles.noteEmpty}>Nessuna nota.</Text>
+                )}
+                {active && mine ? (
+                  <Pressable onPress={startEdit} style={styles.editLink}>
+                    <Text style={styles.editLinkText}>✏️ Modifica nota</Text>
+                  </Pressable>
+                ) : null}
+              </>
+            )}
+          </GlassCard>
 
-      <View style={styles.row}>
-        <Stat label="Conferme" value={report.confirms} color="#2E9E5B" />
-        <Stat label="Smentite" value={report.denials} color="#E24B4A" />
-      </View>
+          <View style={styles.row}>
+            <Stat label="Conferme" value={report.confirms} color={colors.success} />
+            <Stat label="Smentite" value={report.denials} color={colors.danger} />
+          </View>
 
-      {active ? (
-        <View style={styles.ttlBox}>
-          <Text style={styles.ttlLabel}>Scade tra</Text>
-          <Countdown style={styles.ttlValue} secondsLeft={report.seconds_left} />
+          {active ? (
+            <GlassCard strong padded={false}>
+              <View style={styles.ttlInner}>
+                <Text style={styles.ttlLabel}>SCADE TRA</Text>
+                <Countdown style={styles.ttlValue} secondsLeft={report.seconds_left} />
+              </View>
+            </GlassCard>
+          ) : (
+            <View style={styles.removedBox}>
+              <Text style={styles.removed}>
+                {report.status === "removed"
+                  ? "Segnalazione rimossa dalla community."
+                  : "Segnalazione scaduta."}
+              </Text>
+            </View>
+          )}
         </View>
-      ) : (
-        <Text style={styles.removed}>
-          {report.status === "removed"
-            ? "Segnalazione rimossa dalla community."
-            : "Segnalazione scaduta."}
-        </Text>
-      )}
 
-      {active && (
-        <View style={styles.actions}>
-          <Pressable
-            style={[styles.btn, styles.confirm, voting && styles.disabled]}
-            onPress={() => vote(1)}
-            disabled={voting}
-          >
-            <Text style={styles.btnText}>👍 Confermo</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.btn, styles.deny, voting && styles.disabled]}
-            onPress={() => vote(-1)}
-            disabled={voting}
-          >
-            <Text style={styles.btnText}>🚫 Non c'è più</Text>
-          </Pressable>
-        </View>
-      )}
-    </View>
+        {active && !editing && (
+          <View style={styles.actions}>
+            {mine ? (
+              <Button
+                label="Elimina segnalazione"
+                icon="🗑️"
+                variant="danger"
+                onPress={confirmDelete}
+                loading={deleting}
+                style={styles.actionBtn}
+              />
+            ) : (
+              <>
+                <Button
+                  label="Confermo"
+                  icon="👍"
+                  variant="success"
+                  onPress={() => vote(1)}
+                  disabled={voting}
+                  style={styles.actionBtn}
+                />
+                <Button
+                  label="Non c'è più"
+                  icon="🚫"
+                  variant="danger"
+                  onPress={() => vote(-1)}
+                  disabled={voting}
+                  style={styles.actionBtn}
+                />
+              </>
+            )}
+          </View>
+        )}
+      </View>
+    </GradientBackground>
   );
 }
 
-function Stat({ label, value, color }: { label: string; value: number; color: string }) {
+function Stat({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
   return (
-    <View style={styles.stat}>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
+    <GlassCard strong style={styles.stat} padded={false}>
+      <View style={styles.statInner}>
+        <Text style={[styles.statValue, { color }]}>{value}</Text>
+        <Text style={styles.statLabel}>{label}</Text>
+      </View>
+    </GlassCard>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  container: { flex: 1, backgroundColor: "#fff", padding: 22, gap: 18 },
-  header: { flexDirection: "row", alignItems: "center", gap: 10 },
+  container: { flex: 1, padding: spacing.xl },
+  content: { gap: spacing.lg },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   dot: { width: 16, height: 16, borderRadius: 8 },
-  category: { fontSize: 22, fontWeight: "800" },
-  note: { fontSize: 16, lineHeight: 23, color: "#222" },
-  noteEmpty: { fontSize: 15, color: "#999", fontStyle: "italic" },
-  row: { flexDirection: "row", gap: 16 },
-  stat: {
-    flex: 1,
-    backgroundColor: "#F5F6F8",
-    borderRadius: 12,
-    paddingVertical: 16,
+  category: { fontSize: font.title, fontWeight: "800", color: colors.text },
+  livePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.successSoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+  },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.success },
+  liveText: {
+    fontSize: font.tiny,
+    fontWeight: "800",
+    color: colors.success,
+    letterSpacing: 0.5,
+  },
+  note: { fontSize: font.body, lineHeight: 23, color: colors.text },
+  noteEmpty: { fontSize: font.small, color: colors.textFaint, fontStyle: "italic" },
+  editLink: { marginTop: spacing.md, alignSelf: "flex-start" },
+  editLinkText: { color: colors.primary, fontWeight: "700", fontSize: font.small },
+  editBox: { gap: spacing.sm },
+  noteInput: {
+    backgroundColor: colors.glassInput,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.glassBorder,
+    padding: spacing.lg,
+    minHeight: 90,
+    textAlignVertical: "top",
+    fontSize: font.body,
+    color: colors.text,
+  },
+  counter: { alignSelf: "flex-end", color: colors.textMuted, fontSize: font.tiny },
+  editActions: { flexDirection: "row", gap: spacing.md },
+  editBtn: { flex: 1 },
+  row: { flexDirection: "row", gap: spacing.lg },
+  stat: { flex: 1 },
+  statInner: { paddingVertical: spacing.xl, alignItems: "center" },
+  statValue: { fontSize: 32, fontWeight: "800" },
+  statLabel: { color: colors.textMuted, marginTop: 2, fontSize: font.small },
+  ttlInner: { padding: spacing.xl, alignItems: "center", gap: spacing.xs },
+  ttlLabel: {
+    color: colors.primary,
+    fontWeight: "800",
+    fontSize: font.tiny,
+    letterSpacing: 1,
+  },
+  ttlValue: { fontSize: 30, fontWeight: "800", color: colors.primaryDark },
+  removedBox: {
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     alignItems: "center",
   },
-  statValue: { fontSize: 28, fontWeight: "800" },
-  statLabel: { color: "#666", marginTop: 2 },
-  ttlBox: {
-    backgroundColor: "#EAF3FB",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
+  removed: { color: colors.danger, fontWeight: "700", fontSize: font.body },
+  actions: {
+    flexDirection: "row",
+    gap: spacing.md,
+    marginTop: "auto",
+    paddingTop: spacing.lg,
   },
-  ttlLabel: { color: "#3B82C4", fontWeight: "600" },
-  ttlValue: { fontSize: 24, fontWeight: "800", color: "#1f5e8f", marginTop: 4 },
-  removed: { color: "#E24B4A", fontWeight: "600", fontSize: 16 },
-  actions: { flexDirection: "row", gap: 14, marginTop: "auto" },
-  btn: { flex: 1, paddingVertical: 16, borderRadius: 12, alignItems: "center" },
-  confirm: { backgroundColor: "#2E9E5B" },
-  deny: { backgroundColor: "#E24B4A" },
-  disabled: { opacity: 0.6 },
-  btnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  actionBtn: { flex: 1 },
 });

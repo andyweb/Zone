@@ -9,10 +9,13 @@ import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
-// Notifica in foreground: mostra il banner (niente suono/badge per non disturbare).
+// Notifica in foreground: mostra il banner in lista (niente suono/badge per
+// non disturbare). SDK 54: shouldShowBanner/shouldShowList sostituiscono
+// shouldShowAlert.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
   }),

@@ -10,6 +10,15 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AuthProvider, useAuth } from "../lib/auth";
+import { colors, font } from "../lib/theme";
+
+const headerStyle = {
+  headerShown: true,
+  headerStyle: { backgroundColor: colors.surface },
+  headerShadowVisible: false,
+  headerTintColor: colors.primary,
+  headerTitleStyle: { color: colors.text, fontWeight: "800" as const, fontSize: font.h3 },
+};
 
 function RootNavigator() {
   const { token, loading } = useAuth();
@@ -29,35 +38,44 @@ function RootNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" />
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
       <Stack.Screen name="(auth)/login" />
       <Stack.Screen name="onboarding" options={{ presentation: "modal" }} />
       <Stack.Screen name="(app)/map" />
       <Stack.Screen
         name="(app)/create"
-        options={{ presentation: "modal", headerShown: true, title: "Nuova segnalazione" }}
+        options={{ ...headerStyle, presentation: "modal", title: "Nuova segnalazione" }}
       />
       <Stack.Screen
         name="report/[id]"
-        options={{ presentation: "modal", headerShown: true, title: "Dettaglio" }}
+        options={{ ...headerStyle, presentation: "modal", title: "Dettaglio" }}
       />
     </Stack>
   );
 }
+
+const styles = {
+  loading: {
+    flex: 1,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+    backgroundColor: colors.bg,
+  },
+};
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <StatusBar style="auto" />
+          <StatusBar style="dark" />
           <RootNavigator />
         </AuthProvider>
       </SafeAreaProvider>
