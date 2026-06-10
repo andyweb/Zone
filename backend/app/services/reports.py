@@ -44,7 +44,9 @@ def _seconds_left(expires_at: datetime) -> int:
     return max(0, int((expires_at - _now()).total_seconds()))
 
 
-def report_to_out(report: Report, lat: float, lon: float) -> ReportOut:
+def report_to_out(
+    report: Report, lat: float, lon: float, is_mine: bool = False
+) -> ReportOut:
     return ReportOut(
         id=report.id,
         category=report.category,
@@ -55,6 +57,7 @@ def report_to_out(report: Report, lat: float, lon: float) -> ReportOut:
         denials=report.denials,
         status=report.status,
         seconds_left=_seconds_left(report.expires_at),
+        is_mine=is_mine,
     )
 
 
@@ -199,7 +202,9 @@ async def _report_coords(session: AsyncSession, report_id: int) -> tuple[float, 
     return (row["lat"], row["lon"]) if row else (0.0, 0.0)
 
 
-async def get_report(session: AsyncSession, report_id: int) -> ReportOut:
+async def get_report(
+    session: AsyncSession, report_id: int, user: User | None = None
+) -> ReportOut:
     """Singola segnalazione per id (qualunque status, per dettaglio/deep link)."""
     report = await session.get(Report, report_id)
     if report is None:
@@ -208,7 +213,60 @@ async def get_report(session: AsyncSession, report_id: int) -> ReportOut:
             detail="segnalazione inesistente",
         )
     lat, lon = await _report_coords(session, report_id)
-    return report_to_out(report, lat, lon)
+    is_mine = user is not None and report.user_id == user.id
+    return report_to_out(report, lat, lon, is_mine=is_mine)
+
+
+async def update_report_note(
+    session: AsyncSession, user: User, report_id: int, note: str | None
+) -> ReportOut:
+    """L'autore corregge la nota. Categoria, posizione, voti e TTL invariati."""
+    report = await session.get(Report, report_id)
+    if report is None or report.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="segnalazione inesistente o non più attiva",
+        )
+    if report.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="puoi modificare solo le tue segnalazioni",
+        )
+
+    report.note = (note or "").strip() or None
+    await session.commit()
+    await session.refresh(report)
+
+    lat, lon = await _report_coords(session, report_id)
+    # Il broadcast SSE va a tutti: niente is_mine (default False).
+    broadcast = report_to_out(report, lat, lon)
+    await broker.publish("updated", lat, lon, {"report": broadcast.model_dump()})
+    # La risposta all'autore mantiene is_mine per i comandi in app.
+    return report_to_out(report, lat, lon, is_mine=True)
+
+
+async def delete_report(
+    session: AsyncSession, user: User, report_id: int
+) -> None:
+    """L'autore elimina la propria segnalazione: rimozione definitiva + SSE."""
+    report = await session.get(Report, report_id)
+    if report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="segnalazione inesistente",
+        )
+    if report.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="puoi eliminare solo le tue segnalazioni",
+        )
+
+    # Coordinate prima della cancellazione (servono per il filtro SSE per area).
+    lat, lon = await _report_coords(session, report_id)
+    await session.delete(report)  # i voti spariscono per ON DELETE CASCADE
+    await session.commit()
+
+    await broker.publish("removed", lat, lon, {"report_id": report_id})
 
 
 async def vote_report(

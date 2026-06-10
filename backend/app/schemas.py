@@ -50,6 +50,10 @@ class ReportCreateIn(BaseModel):
         return v
 
 
+class ReportNoteUpdateIn(BaseModel):
+    note: str | None = Field(default=None, max_length=280)
+
+
 class ReportOut(BaseModel):
     id: int
     category: str
@@ -60,6 +64,9 @@ class ReportOut(BaseModel):
     denials: int
     status: str
     seconds_left: int
+    # True solo nella risposta di dettaglio quando il richiedente è l'autore:
+    # abilita modifica/eliminazione lato client.
+    is_mine: bool = False
 
 
 class VoteIn(BaseModel):

@@ -1,8 +1,9 @@
-"""Router reports: creazione, nearby, voto. Più endpoint categorie."""
+"""Router reports: creazione, nearby, dettaglio, modifica nota, eliminazione,
+voto. Più endpoint categorie."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import get_current_user
@@ -13,6 +14,7 @@ from ..models import User
 from ..schemas import (
     CategoryOut,
     ReportCreateIn,
+    ReportNoteUpdateIn,
     ReportOut,
     VoteIn,
 )
@@ -63,7 +65,26 @@ async def get_report(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> ReportOut:
-    return await svc.get_report(session, report_id)
+    return await svc.get_report(session, report_id, user)
+
+
+@router.patch("/reports/{report_id}", response_model=ReportOut)
+async def update_report_note(
+    report_id: int,
+    payload: ReportNoteUpdateIn,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ReportOut:
+    return await svc.update_report_note(session, user, report_id, payload.note)
+
+
+@router.delete("/reports/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_report(
+    report_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    await svc.delete_report(session, user, report_id)
 
 
 @router.post("/reports/{report_id}/vote", response_model=ReportOut)
