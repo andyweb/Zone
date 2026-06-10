@@ -2,6 +2,10 @@
 // Finché lo stato auth è in caricamento mostra uno spinner; poi instrada
 // verso login o area autenticata.
 
+import {
+  SpaceGrotesk_700Bold,
+  useFonts,
+} from "@expo-google-fonts/space-grotesk";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
@@ -22,6 +26,7 @@ const headerStyle = {
 
 function RootNavigator() {
   const { token, loading } = useAuth();
+  const [fontsLoaded] = useFonts({ SpaceGrotesk_700Bold });
   const segments = useSegments();
   const router = useRouter();
 
@@ -36,7 +41,7 @@ function RootNavigator() {
     }
   }, [token, loading, segments, router]);
 
-  if (loading) {
+  if (loading || !fontsLoaded) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color={colors.primary} />

@@ -1,5 +1,6 @@
-// Campo di testo con etichetta, icona opzionale e stato di focus.
+// Campo di testo con etichetta, icona a linea (Feather) e stato di focus.
 
+import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   StyleProp,
@@ -15,7 +16,7 @@ import { colors, font, radius, spacing } from "../../lib/theme";
 
 interface Props extends TextInputProps {
   label?: string;
-  icon?: string;
+  icon?: React.ComponentProps<typeof Feather>["name"];
   inputStyle?: StyleProp<TextStyle>;
 }
 
@@ -26,7 +27,13 @@ export function TextField({ label, icon, inputStyle, ...rest }: Props) {
     <View style={styles.wrap}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <View style={[styles.field, focused && styles.fieldFocused]}>
-        {icon ? <Text style={styles.icon}>{icon}</Text> : null}
+        {icon ? (
+          <Feather
+            name={icon}
+            size={18}
+            color={focused ? colors.primary : colors.textFaint}
+          />
+        ) : null}
         <TextInput
           style={[styles.input, inputStyle]}
           placeholderTextColor={colors.textFaint}
@@ -61,7 +68,6 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     backgroundColor: colors.glassInputFocus,
   },
-  icon: { fontSize: 17 },
   input: {
     flex: 1,
     paddingVertical: 15,

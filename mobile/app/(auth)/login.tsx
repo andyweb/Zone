@@ -65,7 +65,7 @@ export default function LoginScreen() {
               <View style={styles.logo}>
                 <Text style={styles.logoMark}>📍</Text>
               </View>
-              <Text style={styles.appName}>Segnalazioni Live</Text>
+              <Text style={styles.appName}>Zone</Text>
               <Text style={styles.tagline}>
                 Cosa succede intorno a te, adesso.
               </Text>
@@ -100,7 +100,7 @@ export default function LoginScreen() {
               <View style={styles.form}>
                 <TextField
                   label="Email"
-                  icon="✉️"
+                  icon="mail"
                   placeholder="nome@email.com"
                   autoCapitalize="none"
                   keyboardType="email-address"
@@ -110,7 +110,7 @@ export default function LoginScreen() {
                 />
                 <TextField
                   label="Password"
-                  icon="🔒"
+                  icon="lock"
                   placeholder="Almeno 8 caratteri"
                   secureTextEntry
                   value={password}
@@ -149,15 +149,21 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: radius.xl,
-    backgroundColor: colors.primary,
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.sm,
-    ...shadow.button,
   },
   logoMark: { fontSize: 40 },
-  appName: { fontSize: font.title, fontWeight: "800", color: colors.text },
-  tagline: { fontSize: font.body, color: colors.textMuted },
+  appName: {
+    fontFamily: "SpaceGrotesk_700Bold",
+    fontSize: 44,
+    color: colors.onGradient,
+    letterSpacing: 1,
+  },
+  tagline: { fontSize: font.body, color: colors.onGradientMuted },
   card: { gap: spacing.xl },
   segment: {
     flexDirection: "row",

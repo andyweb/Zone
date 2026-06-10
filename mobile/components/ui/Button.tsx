@@ -12,7 +12,7 @@ import {
 
 import { colors, font, radius, shadow, spacing } from "../../lib/theme";
 
-type Variant = "primary" | "success" | "danger" | "ghost";
+type Variant = "primary" | "success" | "danger" | "ghost" | "light";
 
 interface Props {
   label: string;
@@ -29,6 +29,7 @@ const BG: Record<Variant, string> = {
   success: colors.success,
   danger: colors.danger,
   ghost: "transparent",
+  light: colors.white,
 };
 
 export function Button({
@@ -40,7 +41,7 @@ export function Button({
   icon,
   style,
 }: Props) {
-  const isGhost = variant === "ghost";
+  const tintedLabel = variant === "ghost" || variant === "light";
   const blocked = loading || disabled;
 
   return (
@@ -51,15 +52,16 @@ export function Button({
         styles.base,
         { backgroundColor: BG[variant] },
         variant === "primary" && shadow.button,
+        variant === "light" && shadow.card,
         blocked && styles.blocked,
         pressed && !blocked && styles.pressed,
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={isGhost ? colors.primary : colors.white} />
+        <ActivityIndicator color={tintedLabel ? colors.primary : colors.white} />
       ) : (
-        <Text style={[styles.label, isGhost && styles.ghostLabel]}>
+        <Text style={[styles.label, tintedLabel && styles.ghostLabel]}>
           {icon ? `${icon}  ${label}` : label}
         </Text>
       )}

@@ -68,7 +68,12 @@ export default function Onboarding() {
 
           <Disclaimer />
 
-          <Button label="Ho capito, continua" onPress={accept} loading={busy} />
+          <Button
+            label="Ho capito, continua"
+            variant="light"
+            onPress={accept}
+            loading={busy}
+          />
         </ScrollView>
       </SafeAreaView>
     </GradientBackground>
@@ -87,10 +92,10 @@ const styles = StyleSheet.create({
   kicker: {
     fontSize: font.tiny,
     fontWeight: "800",
-    color: colors.primary,
+    color: colors.onGradientMuted,
     letterSpacing: 1.5,
   },
-  title: { fontSize: font.display, fontWeight: "800", color: colors.text },
+  title: { fontSize: font.display, fontWeight: "800", color: colors.onGradient },
   features: { gap: spacing.md },
   feature: { borderRadius: radius.lg },
   featureInner: {

@@ -32,18 +32,20 @@ export const colors = {
   // glass / sfumature
   onGradient: "#FFFFFF",
   onGradientMuted: "rgba(255,255,255,0.82)",
-  glassFill: "rgba(255,255,255,0.55)",
-  glassFillStrong: "rgba(255,255,255,0.72)",
-  glassBorder: "rgba(255,255,255,0.65)",
+  glassFill: "rgba(255,255,255,0.42)",
+  glassFillStrong: "rgba(255,255,255,0.6)",
+  glassBorder: "rgba(255,255,255,0.6)",
   glassInput: "rgba(255,255,255,0.45)",
   glassInputFocus: "rgba(255,255,255,0.85)",
 } as const;
 
-// Sfumature di sfondo (tricolore: verde → bianco → rosso, toni morbidi).
+// Sfondo: verde lineare (chiaro → brand → profondo). I vetri traslucidi ci
+// galleggiano sopra con un bell'effetto glass.
 export const gradients = {
-  app: ["#5FC98E", "#FFFFFF", "#EE7A72"] as const,
-  // sfumatura più tenue per le schermate modali (crea / dettaglio)
-  soft: ["#EAF7EF", "#FFFFFF", "#FDECEB"] as const,
+  app: ["#34C77B", "#17A24D", "#0C7A39"] as const,
+  // variante più tenue per le schermate modali (crea / dettaglio): testo scuro
+  // leggibile, vetri comunque percepibili.
+  soft: ["#E7F7EE", "#D6F0E0", "#C2E8D2"] as const,
 } as const;
 
 export const spacing = {
