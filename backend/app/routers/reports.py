@@ -3,7 +3,7 @@ voto. Più endpoint categorie."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import get_current_user
@@ -78,13 +78,18 @@ async def update_report_note(
     return await svc.update_report_note(session, user, report_id, payload.note)
 
 
-@router.delete("/reports/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/reports/{report_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 async def delete_report(
     report_id: int,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
-) -> None:
+) -> Response:
     await svc.delete_report(session, user, report_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/reports/{report_id}/vote", response_model=ReportOut)
