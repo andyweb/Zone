@@ -21,6 +21,7 @@ import { GradientBackground } from "../../components/ui/GradientBackground";
 import * as api from "../../lib/api";
 import { ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { queueRemoved, queueUpdated } from "../../lib/pendingReport";
 import { colors, font, radius, spacing } from "../../lib/theme";
 import type { Category, Report } from "../../lib/types";
 
@@ -90,6 +91,7 @@ export default function ReportDetail() {
       const updated = await api.updateReportNote(token, report.id, noteText.trim() || null);
       setReport(updated);
       setEditing(false);
+      queueUpdated(updated); // la mappa rifletterà la nota aggiornata al ritorno
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Salvataggio non riuscito";
       Alert.alert("Errore", msg);
@@ -114,6 +116,7 @@ export default function ReportDetail() {
     setDeleting(true);
     try {
       await api.deleteReport(token, report.id);
+      queueRemoved(report.id); // la mappa toglie subito il marker al ritorno
       router.back();
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Eliminazione non riuscita";

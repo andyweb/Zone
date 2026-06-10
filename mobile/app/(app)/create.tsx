@@ -22,6 +22,7 @@ import { GradientBackground } from "../../components/ui/GradientBackground";
 import * as api from "../../lib/api";
 import { ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { queueCreated } from "../../lib/pendingReport";
 import { colors, font, radius, shadow, spacing } from "../../lib/theme";
 import type { Category } from "../../lib/types";
 
@@ -58,12 +59,14 @@ export default function CreateReport() {
     }
     setBusy(true);
     try {
-      await api.createReport(token, {
+      const created = await api.createReport(token, {
         category,
         note: note.trim() || null,
         lat: point.lat,
         lon: point.lon,
       });
+      // Deposita la segnalazione: la mappa la mostra subito al ritorno.
+      queueCreated(created);
       router.back();
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Invio non riuscito";

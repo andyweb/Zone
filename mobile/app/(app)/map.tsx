@@ -2,7 +2,7 @@
 // categoria, cerchio del raggio di ricerca, aggiornamenti live via SSE
 // (con fallback polling). Bottone flottante per creare; tap marker → dettaglio.
 
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -21,6 +21,7 @@ import { Countdown } from "../../components/Countdown";
 import * as api from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { DEFAULT_RADIUS_M } from "../../lib/config";
+import { takePending } from "../../lib/pendingReport";
 import { registerForPushNotificationsAsync } from "../../lib/push";
 import type { Category, Report, SSEReportEvent } from "../../lib/types";
 
@@ -32,7 +33,9 @@ export default function MapScreen() {
   const [reports, setReports] = useState<Map<number, Report>>(new Map());
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [banner, setBanner] = useState<string | null>(null);
   const subRef = useRef<api.StreamSubscription | null>(null);
+  const sentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const colorFor = useMemo(() => {
     const m = new Map(categories.map((c) => [c.key, c.color]));
@@ -122,6 +125,34 @@ export default function MapScreen() {
     }
   }, [token, coords]);
 
+  // Al ritorno da "Crea"/"Dettaglio": applica subito le modifiche in coda
+  // (inserimento/aggiornamento/rimozione ottimistici) + banner, senza SSE.
+  useFocusEffect(
+    useCallback(() => {
+      const { upserts, removedIds, banner: msg } = takePending();
+      if (upserts.length || removedIds.length) {
+        setReports((prev) => {
+          const next = new Map(prev);
+          for (const r of upserts) {
+            if (r.status === "active") next.set(r.id, r);
+            else next.delete(r.id);
+          }
+          for (const id of removedIds) next.delete(id);
+          return next;
+        });
+      }
+      if (msg) {
+        setBanner(msg);
+        if (sentTimer.current) clearTimeout(sentTimer.current);
+        sentTimer.current = setTimeout(() => setBanner(null), 2800);
+      }
+      void refresh();
+      return () => {
+        if (sentTimer.current) clearTimeout(sentTimer.current);
+      };
+    }, [refresh]),
+  );
+
   useEffect(() => {
     if (!token || !coords) return;
     void refresh();
@@ -188,6 +219,14 @@ export default function MapScreen() {
           </Pressable>
         </View>
       </SafeAreaView>
+
+      {banner && (
+        <SafeAreaView style={styles.sentBanner} pointerEvents="none">
+          <View style={styles.sentPill}>
+            <Text style={styles.sentText}>{banner}</Text>
+          </View>
+        </SafeAreaView>
+      )}
 
       <Pressable
         style={styles.fab}
@@ -260,6 +299,26 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
   },
   fabText: { color: "#fff", fontSize: 34, lineHeight: 38, fontWeight: "300" },
+  sentBanner: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  sentPill: {
+    marginTop: 8,
+    backgroundColor: "#16A34A",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  sentText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   nextExpiry: {
     position: "absolute",
     bottom: 44,
