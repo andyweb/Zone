@@ -56,7 +56,7 @@ async def nearby(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[ReportOut]:
-    return await svc.nearby_reports(session, lat, lon, radius_m)
+    return await svc.nearby_reports(session, lat, lon, radius_m, user.id)
 
 
 @router.get("/reports/{report_id}", response_model=ReportOut)

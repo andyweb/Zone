@@ -147,13 +147,22 @@ async def create_report(
 
 
 async def nearby_reports(
-    session: AsyncSession, lat: float, lon: float, radius_m: int
+    session: AsyncSession,
+    lat: float,
+    lon: float,
+    radius_m: int,
+    user_id: int | None = None,
 ) -> list[ReportOut]:
-    """Query "nearby" (sezione 5.1) — cuore dell'app."""
+    """Query "nearby" (sezione 5.1) — cuore dell'app.
+
+    `is_mine` segnala le segnalazioni dell'utente corrente (per mostrargli i
+    comandi, es. eliminazione, nell'elenco).
+    """
     radius_m = min(max(radius_m, 1), settings.nearby_max_radius_m)
     sql = text(
         """
         SELECT id, category, note, confirms, denials, status,
+               (user_id = :uid) AS is_mine,
                ST_Y(geom::geometry) AS lat,
                ST_X(geom::geometry) AS lon,
                EXTRACT(EPOCH FROM (expires_at - now())) AS seconds_left
@@ -170,7 +179,7 @@ async def nearby_reports(
     )
     rows = (
         await session.execute(
-            sql, {"lat": lat, "lon": lon, "radius_m": radius_m}
+            sql, {"lat": lat, "lon": lon, "radius_m": radius_m, "uid": user_id}
         )
     ).mappings()
     return [
@@ -184,6 +193,7 @@ async def nearby_reports(
             denials=r["denials"],
             status=r["status"],
             seconds_left=max(0, int(r["seconds_left"])),
+            is_mine=bool(r["is_mine"]),
         )
         for r in rows
     ]
