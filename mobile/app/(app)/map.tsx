@@ -159,8 +159,8 @@ export default function MapScreen() {
           {
             latitude: last.lat,
             longitude: last.lon,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
+            latitudeDelta: 0.09,
+            longitudeDelta: 0.09,
           },
           600,
         );
@@ -195,8 +195,8 @@ export default function MapScreen() {
     ? {
         latitude: coords.lat,
         longitude: coords.lon,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
+        latitudeDelta: 0.09,
+        longitudeDelta: 0.09,
       }
     : undefined;
 

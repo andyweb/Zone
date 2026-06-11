@@ -4,8 +4,8 @@
 export const API_URL =
   process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:8000";
 
-// Raggio di ricerca di default (metri) e fallback polling.
-export const DEFAULT_RADIUS_M = 1000;
+// Raggio di ricerca di default (metri). 5 km copre bene una città/zona.
+export const DEFAULT_RADIUS_M = 5000;
 
 // Fallback documentato dal brief: se l'SSE non è disponibile, il client fa
 // polling di /reports/nearby a questo intervallo.
