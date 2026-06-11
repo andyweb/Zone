@@ -56,7 +56,15 @@ function RootNavigator() {
       <Stack.Screen name="(app)/map" />
       <Stack.Screen
         name="(app)/create"
-        options={{ ...headerStyle, presentation: "modal", title: "Nuova segnalazione" }}
+        options={{ presentation: "modal", headerShown: false }}
+      />
+      <Stack.Screen
+        name="(app)/pick-location"
+        options={{ ...headerStyle, headerShown: true, title: "Scegli il punto" }}
+      />
+      <Stack.Screen
+        name="(app)/active-list"
+        options={{ ...headerStyle, headerShown: true, presentation: "modal", title: "Segnalazioni attive" }}
       />
       <Stack.Screen
         name="report/[id]"

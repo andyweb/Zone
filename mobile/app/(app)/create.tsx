@@ -1,19 +1,19 @@
-// Crea segnalazione: scelta categoria (lista chiusa) → conferma punto sulla
-// mappa (posizione attuale o pin trascinabile) → nota opzionale → invio.
+// Crea segnalazione: scelta categoria (lista chiusa) → scelta punto sulla mappa
+// (anteprima → selettore a tutto schermo) → nota opzionale → invio.
 
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  KeyboardAvoidingView,
-  Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import MapView, { MapPressEvent, Marker } from "react-native-maps";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import MapView, { Marker } from "react-native-maps";
 
 import { CategoryPicker } from "../../components/CategoryPicker";
 import { Disclaimer } from "../../components/Disclaimer";
@@ -22,6 +22,7 @@ import { GradientBackground } from "../../components/ui/GradientBackground";
 import * as api from "../../lib/api";
 import { ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { takePickedLocation } from "../../lib/locationPicker";
 import { queueCreated } from "../../lib/pendingReport";
 import { colors, font, radius, shadow, spacing } from "../../lib/theme";
 import type { Category } from "../../lib/types";
@@ -32,6 +33,7 @@ export default function CreateReport() {
   const { token } = useAuth();
   const router = useRouter();
   const params = useLocalSearchParams<{ lat?: string; lon?: string }>();
+  const insets = useSafeAreaInsets();
 
   const initialLat = params.lat ? parseFloat(params.lat) : 45.4642;
   const initialLon = params.lon ? parseFloat(params.lon) : 9.19;
@@ -46,9 +48,19 @@ export default function CreateReport() {
     api.getCategories().then(setCategories).catch(() => {});
   }, []);
 
-  const onMapPress = (e: MapPressEvent) => {
-    const { latitude, longitude } = e.nativeEvent.coordinate;
-    setPoint({ lat: latitude, lon: longitude });
+  // Al ritorno dal selettore a tutto schermo: applica il punto scelto.
+  useFocusEffect(
+    useCallback(() => {
+      const picked = takePickedLocation();
+      if (picked) setPoint(picked);
+    }, []),
+  );
+
+  const openPicker = () => {
+    router.push({
+      pathname: "/(app)/pick-location",
+      params: { lat: String(point.lat), lon: String(point.lon) },
+    });
   };
 
   const submit = async () => {
@@ -78,89 +90,118 @@ export default function CreateReport() {
 
   return (
     <GradientBackground variant="soft">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      {/* Barra superiore: maniglia (trascina per chiudere) + titolo */}
+      <View style={styles.topBar}>
+        <View style={styles.grabber} />
+        <Text style={styles.title}>Nuova segnalazione</Text>
+        <Text style={styles.subtitle}>Segnala cosa succede qui intorno</Text>
+      </View>
+
+      <ScrollView
         style={styles.flex}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView contentContainerStyle={styles.container}>
-          <View style={styles.section}>
-            <Text style={styles.label}>Categoria</Text>
-            <CategoryPicker
-              categories={categories}
-              selected={category}
-              onSelect={setCategory}
-            />
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.label}>Punto sulla mappa</Text>
-            <Text style={styles.hint}>
-              Tocca la mappa o trascina il pin per spostare il punto.
-            </Text>
-            <View style={styles.mapBox}>
-              <MapView
-                style={styles.map}
-                initialRegion={{
-                  latitude: initialLat,
-                  longitude: initialLon,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-                onPress={onMapPress}
-              >
-                <Marker
-                  coordinate={{ latitude: point.lat, longitude: point.lon }}
-                  draggable
-                  onDragEnd={(e) =>
-                    setPoint({
-                      lat: e.nativeEvent.coordinate.latitude,
-                      lon: e.nativeEvent.coordinate.longitude,
-                    })
-                  }
-                />
-              </MapView>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.label}>Nota (opzionale)</Text>
-            <TextInput
-              style={styles.note}
-              placeholder="Aggiungi un dettaglio utile…"
-              placeholderTextColor={colors.textFaint}
-              value={note}
-              onChangeText={(t) => setNote(t.slice(0, NOTE_MAX))}
-              multiline
-              maxLength={NOTE_MAX}
-            />
-            <Text style={styles.counter}>
-              {note.length}/{NOTE_MAX}
-            </Text>
-          </View>
-
-          <Disclaimer compact />
-
-          <Button
-            label="Invia segnalazione"
-            icon="📍"
-            onPress={submit}
-            loading={busy}
-            style={styles.submit}
+        <View style={styles.section}>
+          <Text style={styles.label}>Categoria</Text>
+          <CategoryPicker
+            categories={categories}
+            selected={category}
+            onSelect={setCategory}
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Punto sulla mappa</Text>
+          <Text style={styles.hint}>
+            Tocca l'anteprima per scegliere il punto sulla mappa.
+          </Text>
+          <Pressable style={styles.mapBox} onPress={openPicker}>
+            <MapView
+              style={styles.map}
+              pointerEvents="none"
+              region={{
+                latitude: point.lat,
+                longitude: point.lon,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }}
+            >
+              <Marker coordinate={{ latitude: point.lat, longitude: point.lon }} />
+            </MapView>
+            <View style={styles.mapOverlay}>
+              <Text style={styles.mapOverlayText}>Tocca per scegliere</Text>
+            </View>
+          </Pressable>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Nota (opzionale)</Text>
+          <TextInput
+            style={styles.note}
+            placeholder="Aggiungi un dettaglio utile…"
+            placeholderTextColor={colors.textFaint}
+            value={note}
+            onChangeText={(t) => setNote(t.slice(0, NOTE_MAX))}
+            multiline
+            maxLength={NOTE_MAX}
+          />
+          <Text style={styles.counter}>
+            {note.length}/{NOTE_MAX}
+          </Text>
+        </View>
+
+        <Disclaimer compact />
+      </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
+        <Button
+          label="Invia segnalazione"
+          icon="📍"
+          onPress={submit}
+          loading={busy}
+        />
+      </View>
     </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  container: { padding: spacing.xl, gap: spacing.xl },
+  topBar: {
+    alignItems: "center",
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+  },
+  grabber: {
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "rgba(15,23,41,0.18)",
+    marginBottom: spacing.lg,
+  },
+  title: {
+    fontSize: font.title,
+    fontWeight: "800",
+    color: colors.text,
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: font.small,
+    color: colors.textMuted,
+    marginTop: 2,
+    textAlign: "center",
+  },
+  container: { padding: spacing.xl, gap: spacing.xl, paddingBottom: spacing.xxxl },
   section: { gap: spacing.sm },
   label: { fontSize: font.h3, fontWeight: "800", color: colors.text },
   hint: { color: colors.textMuted, fontSize: font.small },
   mapBox: {
-    height: 240,
+    height: 220,
     borderRadius: radius.lg,
     overflow: "hidden",
     borderWidth: 1,
@@ -168,6 +209,17 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
   map: { flex: 1 },
+  mapOverlay: {
+    position: "absolute",
+    bottom: spacing.md,
+    alignSelf: "center",
+    backgroundColor: "rgba(255,255,255,0.92)",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    ...shadow.card,
+  },
+  mapOverlayText: { color: colors.primary, fontWeight: "700", fontSize: font.small },
   note: {
     backgroundColor: colors.glassInput,
     borderRadius: radius.md,
@@ -184,5 +236,11 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: font.tiny,
   },
-  submit: { marginTop: spacing.xs },
+  footer: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    backgroundColor: "rgba(255,255,255,0.88)",
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
 });

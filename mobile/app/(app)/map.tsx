@@ -36,6 +36,7 @@ export default function MapScreen() {
   const [banner, setBanner] = useState<string | null>(null);
   const subRef = useRef<api.StreamSubscription | null>(null);
   const sentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mapRef = useRef<MapView>(null);
 
   const colorFor = useMemo(() => {
     const m = new Map(categories.map((c) => [c.key, c.color]));
@@ -113,17 +114,21 @@ export default function MapScreen() {
   }, []);
 
   // 3) caricamento iniziale + sottoscrizione live
-  const refresh = useCallback(async () => {
-    if (!token || !coords) return;
-    try {
-      const list = await api.getNearby(token, coords.lat, coords.lon, DEFAULT_RADIUS_M);
-      setReports(new Map(list.map((r) => [r.id, r])));
-    } catch (e) {
-      // silenzioso: lo stream/polling riconcilia comunque
-    } finally {
-      setLoading(false);
-    }
-  }, [token, coords]);
+  const refresh = useCallback(
+    async (center?: { lat: number; lon: number }) => {
+      const c = center ?? coords;
+      if (!token || !c) return;
+      try {
+        const list = await api.getNearby(token, c.lat, c.lon, DEFAULT_RADIUS_M);
+        setReports(new Map(list.map((r) => [r.id, r])));
+      } catch (e) {
+        // silenzioso: lo stream/polling riconcilia comunque
+      } finally {
+        setLoading(false);
+      }
+    },
+    [token, coords],
+  );
 
   // Al ritorno da "Crea"/"Dettaglio": applica subito le modifiche in coda
   // (inserimento/aggiornamento/rimozione ottimistici) + banner, senza SSE.
@@ -146,7 +151,23 @@ export default function MapScreen() {
         if (sentTimer.current) clearTimeout(sentTimer.current);
         sentTimer.current = setTimeout(() => setBanner(null), 2800);
       }
-      void refresh();
+      // Se è appena nata una segnalazione, ricentra la mappa su di essa e
+      // ricarica l'area attorno (così la vedi anche se è lontana da te).
+      const last = upserts.length ? upserts[upserts.length - 1] : null;
+      if (last) {
+        mapRef.current?.animateToRegion(
+          {
+            latitude: last.lat,
+            longitude: last.lon,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          },
+          600,
+        );
+        void refresh({ lat: last.lat, lon: last.lon });
+      } else {
+        void refresh();
+      }
       return () => {
         if (sentTimer.current) clearTimeout(sentTimer.current);
       };
@@ -192,7 +213,7 @@ export default function MapScreen() {
 
   return (
     <View style={styles.flex}>
-      <MapView style={styles.flex} initialRegion={region} showsUserLocation>
+      <MapView ref={mapRef} style={styles.flex} initialRegion={region} showsUserLocation>
         <Circle
           center={{ latitude: coords!.lat, longitude: coords!.lon }}
           radius={DEFAULT_RADIUS_M}
@@ -213,7 +234,17 @@ export default function MapScreen() {
 
       <SafeAreaView style={styles.overlayTop} pointerEvents="box-none">
         <View style={styles.topBar} pointerEvents="box-none">
-          <Text style={styles.counter}>{list.length} attive</Text>
+          <Pressable
+            style={styles.counter}
+            onPress={() =>
+              router.push({
+                pathname: "/(app)/active-list",
+                params: { lat: String(coords!.lat), lon: String(coords!.lon) },
+              })
+            }
+          >
+            <Text style={styles.counterText}>{list.length} attive ›</Text>
+          </Pressable>
           <Pressable onPress={signOut} style={styles.logout}>
             <Text style={styles.logoutText}>Esci</Text>
           </Pressable>
@@ -272,9 +303,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    fontWeight: "700",
     overflow: "hidden",
   },
+  counterText: { fontWeight: "700", color: "#0E1729" },
   logout: {
     backgroundColor: "rgba(255,255,255,0.92)",
     paddingHorizontal: 12,
