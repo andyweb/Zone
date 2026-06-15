@@ -185,6 +185,11 @@ export default function ReportDetail() {
                 <Text style={styles.category}>
                   {category?.label ?? report.category}
                 </Text>
+                {report.verified ? (
+                  <View style={styles.verifiedPill}>
+                    <Text style={styles.verifiedText}>✔ Verificata</Text>
+                  </View>
+                ) : null}
               </View>
               {active ? (
                 <View style={styles.livePill}>
@@ -400,6 +405,18 @@ const styles = StyleSheet.create({
   removed: { color: colors.danger, fontWeight: "700", fontSize: font.body },
   flagLink: { alignSelf: "center", paddingVertical: spacing.sm },
   flagLinkText: { color: colors.textMuted, fontWeight: "700", fontSize: font.small },
+  verifiedPill: {
+    backgroundColor: colors.successSoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+  },
+  verifiedText: {
+    fontSize: font.tiny,
+    fontWeight: "800",
+    color: colors.success,
+    letterSpacing: 0.3,
+  },
   actions: {
     flexDirection: "row",
     gap: spacing.md,

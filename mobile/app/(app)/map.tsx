@@ -261,7 +261,10 @@ export default function MapScreen() {
             key={r.id}
             coordinate={{ latitude: r.lat, longitude: r.lon }}
             pinColor={colorFor(r.category)}
-            title={categories.find((c) => c.key === r.category)?.label ?? r.category}
+            title={
+              (r.verified ? "✔ " : "") +
+              (categories.find((c) => c.key === r.category)?.label ?? r.category)
+            }
             description={r.note ?? undefined}
             onCalloutPress={() => router.push(`/report/${r.id}`)}
           />

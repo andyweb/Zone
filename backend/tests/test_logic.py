@@ -10,13 +10,14 @@ from app.broker import Subscriber, haversine_m
 from app.categories import is_valid_category, ttl_minutes_for
 from app.config import settings
 from app.moderation import find_blocked, is_clean, normalize
+from app.roles import is_verified, resolve_role, trust_for_role
 from app.services.reports import _clamp_expiry, _now
 
 
 def test_categorie_lista_chiusa():
-    assert is_valid_category("incidente")
+    assert is_valid_category("allagamento")
     assert not is_valid_category("categoria_inventata")
-    assert ttl_minutes_for("incidente") > 0
+    assert ttl_minutes_for("allagamento") > 0
 
 
 def test_clamp_expiry_floor():
@@ -68,3 +69,30 @@ def test_normalize_collassa_ripetizioni():
     # modo, quindi `caaaazzo` resta intercettato (vedi test_moderazione_evasioni)
     assert normalize("caaaazzo") == "cazo"
     assert normalize("MERDA") == "merda"
+
+
+def test_ruoli_verificati():
+    assert is_verified("volontario")
+    assert is_verified("operatore")
+    assert not is_verified("cittadino")
+
+
+def test_resolve_role_default_cittadino():
+    # senza codice, o con codice ignoto, si resta cittadino (fail-safe)
+    assert resolve_role(None) == "cittadino"
+    assert resolve_role("") == "cittadino"
+    assert resolve_role("codice-a-caso") == "cittadino"
+
+
+def test_resolve_role_da_codice(monkeypatch):
+    monkeypatch.setattr(settings, "enrollment_code_volontario", "VOL-2026")
+    monkeypatch.setattr(settings, "enrollment_code_operatore", "OPS-2026")
+    assert resolve_role("VOL-2026") == "volontario"
+    assert resolve_role("OPS-2026") == "operatore"
+    assert resolve_role(" VOL-2026 ") == "volontario"  # trim
+    assert resolve_role("vol-2026") == "cittadino"  # match esatto (case-sensitive)
+
+
+def test_trust_per_ruolo():
+    assert trust_for_role("operatore") > trust_for_role("volontario")
+    assert trust_for_role("volontario") > trust_for_role("cittadino")

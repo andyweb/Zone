@@ -17,6 +17,7 @@ from ..categories import ttl_minutes_for
 from ..config import settings
 from ..models import Report, ReportFlag, ReportVote, User
 from ..moderation import find_blocked
+from ..roles import is_verified
 from ..schemas import FlagOut, ReportOut
 
 
@@ -71,6 +72,8 @@ def report_to_out(
         denials=report.denials,
         status=report.status,
         seconds_left=_seconds_left(report.expires_at),
+        author_role=report.author_role,
+        verified=is_verified(report.author_role),
         is_mine=is_mine,
     )
 
@@ -147,6 +150,7 @@ async def create_report(
     report = Report(
         user_id=user.id,
         category=category,
+        author_role=user.role,
         note=note,
         geom=_point(lat, lon),
         expires_at=expires_at,
@@ -176,7 +180,7 @@ async def nearby_reports(
     radius_m = min(max(radius_m, 1), settings.nearby_max_radius_m)
     sql = text(
         """
-        SELECT id, category, note, confirms, denials, status,
+        SELECT id, category, author_role, note, confirms, denials, status,
                (user_id = :uid) AS is_mine,
                ST_Y(geom::geometry) AS lat,
                ST_X(geom::geometry) AS lon,
@@ -208,6 +212,8 @@ async def nearby_reports(
             denials=r["denials"],
             status=r["status"],
             seconds_left=max(0, int(r["seconds_left"])),
+            author_role=r["author_role"],
+            verified=is_verified(r["author_role"]),
             is_mine=bool(r["is_mine"]),
         )
         for r in rows

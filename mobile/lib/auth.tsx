@@ -19,7 +19,11 @@ interface AuthState {
   token: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    enrollmentCode?: string | null,
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   // Cancella l'account lato server e scarta il token locale (diritto all'oblio).
   deleteAccount: () => Promise<void>;
@@ -56,8 +60,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signUp = useCallback(
-    async (email: string, password: string) => {
-      await api.register(email, password);
+    async (email: string, password: string, enrollmentCode?: string | null) => {
+      await api.register(email, password, enrollmentCode);
       const t = await api.login(email, password);
       await persist(t);
     },

@@ -13,6 +13,9 @@ from .categories import CATEGORIES, is_valid_category
 class RegisterIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+    # Codice di accreditamento (opzionale): se valido, assegna il ruolo
+    # volontario/operatore. Altrimenti si resta cittadino. Vedi app/roles.py.
+    enrollment_code: str | None = Field(default=None, max_length=64)
 
 
 class LoginIn(BaseModel):
@@ -31,6 +34,7 @@ class UserOut(BaseModel):
     id: int
     email: EmailStr
     trust_score: float
+    role: str
 
 
 # --- Reports ---
@@ -64,6 +68,9 @@ class ReportOut(BaseModel):
     denials: int
     status: str
     seconds_left: int
+    # Ruolo dell'autore e flag "verificata" (fonte accreditata PC).
+    author_role: str = "cittadino"
+    verified: bool = False
     # True solo nella risposta di dettaglio quando il richiedente è l'autore:
     # abilita modifica/eliminazione lato client.
     is_mine: bool = False

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..auth import create_access_token, hash_password, verify_password
 from ..db import get_session
 from ..models import User
+from ..roles import resolve_role, trust_for_role
 from ..schemas import LoginIn, RegisterIn, TokenOut, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -19,9 +20,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def register(
     payload: RegisterIn, session: AsyncSession = Depends(get_session)
 ) -> User:
+    # Accreditamento: il codice (se valido) eleva il ruolo e la reputazione.
+    role = resolve_role(payload.enrollment_code)
     user = User(
         email=payload.email.lower(),
         password_hash=hash_password(payload.password),
+        role=role,
+        trust_score=trust_for_role(role),
     )
     session.add(user)
     try:

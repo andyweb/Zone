@@ -118,6 +118,12 @@ Concetti chiave:
   altrui; oltre una soglia di flag distinte viene auto-rimossa.
 - **Cancellazione account** (diritto all'oblio): dal menu "Account" l'utente
   elimina definitivamente account, segnalazioni e voti.
+- **Ruoli accreditati (Protezione Civile)**: in registrazione un **codice di
+  accreditamento** assegna il ruolo volontario/operatore; le loro segnalazioni
+  portano il badge **"✔ Verificata"** e i loro voti pesano di più.
+- **Categorie emergenza**: allagamento, frana, strada interrotta, albero/ostacolo,
+  incendio, black-out, persona in difficoltà, punto di raccolta, presidio,
+  allerta meteo.
 
 ---
 
@@ -130,7 +136,8 @@ Concetti chiave:
 | email | varchar(255) unique | |
 | password_hash | varchar(255) | bcrypt |
 | created_at | timestamptz | |
-| trust_score | numeric (def 1.0) | reputazione: pesa i voti |
+| trust_score | numeric (def 1.0) | reputazione: pesa i voti (più alta per ruoli accreditati) |
+| role | varchar(20) (def cittadino) | cittadino \| volontario \| operatore (accreditamento PC) |
 | expo_push_token | varchar(255) null | per le push |
 | last_location | geography(Point,4326) null | **solo** filtro push, sovrascritta |
 | last_location_at | timestamptz null | freschezza posizione |
@@ -141,6 +148,7 @@ Concetti chiave:
 | id | bigint PK | |
 | user_id | bigint FK→users | autore |
 | category | varchar(40) | chiave da lista chiusa |
+| author_role | varchar(20) (def cittadino) | ruolo autore (denormalizzato → badge "verificata") |
 | note | varchar(280) null | testo libero |
 | geom | geography(Point,4326) | posizione (GIST index) |
 | created_at | timestamptz | |
@@ -176,7 +184,7 @@ Base: `https://zone.delibra.info` (prod) — auth via header
 
 | Metodo | Endpoint | Descrizione |
 |--------|----------|-------------|
-| POST | `/auth/register` | Registrazione email/password |
+| POST | `/auth/register` | Registrazione email/password (+ `enrollment_code` opzionale → ruolo PC) |
 | POST | `/auth/login` | Login → JWT |
 | GET | `/categories` | Lista chiusa categorie (chiave, label, colore, TTL) |
 | POST | `/reports` | Crea segnalazione (`category, note?, lat, lon`) |
@@ -278,7 +286,8 @@ backend/
   app/
     main.py            # FastAPI app, router, lifespan (scheduler)
     config.py          # TUTTI i parametri (TTL, soglie, raggi, rate limit)
-    categories.py      # lista CHIUSA categorie (set reale — vedi §12)
+    categories.py      # lista CHIUSA categorie (set emergenza PC — vedi §12)
+    roles.py           # ruoli (cittadino/volontario/operatore) + accreditamento
     db.py              # engine async, sessione
     models.py          # SQLAlchemy + GeoAlchemy2
     schemas.py         # Pydantic
@@ -291,7 +300,7 @@ backend/
       reports.py       # TTL, voto, anti-abuso, flag, query PostGIS
       account.py       # cancellazione account (diritto all'oblio)
       notify.py        # push Expo (dietro flag)
-  alembic/             # migrazioni (0001_init, 0002_…, 0003_report_flags)
+  alembic/             # migrazioni (0001…0003_report_flags, 0004_roles)
   Dockerfile
   entrypoint.sh        # attende DB, applica migrazioni, avvia API
 proxy/nginx.conf       # reverse proxy SSE-friendly (/reports/stream)
@@ -344,6 +353,8 @@ Vedi [PROVA_SU_DEVICE.md](PROVA_SU_DEVICE.md) per il giro end-to-end.
 | `JWT_ACCESS_TTL_MINUTES` | scadenza token (default 24h) |
 | `PUSH_ENABLED` | abilita le push Expo (default `false`) |
 | `PUSH_RADIUS_M` | raggio (m) per notificare gli utenti vicini |
+| `ENROLLMENT_CODE_VOLONTARIO` / `_OPERATORE` | codici di accreditamento ruoli PC (vuoti = disattivi) |
+| `TRUST_CITTADINO` / `_VOLONTARIO` / `_OPERATORE` | peso reputazione iniziale per ruolo |
 | `MODERATION_ENABLED` | filtro blocklist sulle note (default `true`) |
 | `MODERATION_FLAG_THRESHOLD` | n. di flag distinte per auto-rimuovere (def 3) |
 | `RETENTION_DELETE_AFTER_MINUTES` | finestra prima della cancellazione (def 24h) |
@@ -371,11 +382,14 @@ Milestone implementate:
 - 🟡 **Deploy** — Backend in produzione su DGX/Cloudflare; app su TestFlight.
 
 ### ⚠️ Da completare prima della pubblicazione sugli store
-- **Categorie** (`backend/app/categories.py`): set di default reale (Incidente,
-  Traffico, Lavori, Pericolo, Strada chiusa, Evento, Allerta meteo). La lista
-  definitiva resta una decisione di prodotto con implicazioni legali, da
-  validare per la giurisdizione (evitando categorie sensibili); il sistema regge
-  qualunque set purché resti una lista chiusa (basta editare quel file).
+- **Categorie** (`backend/app/categories.py`): set verticale **Protezione Civile**
+  (allagamento, frana, strada interrotta, ostacolo, incendio, black-out, persona
+  in difficoltà, punto di raccolta, presidio, allerta meteo). La lista definitiva
+  resta una decisione dell'ente; il sistema regge qualunque set purché resti una
+  lista chiusa (basta editare quel file).
+- **Distribuzione codici di accreditamento**: i codici volontario/operatore
+  (`ENROLLMENT_CODE_*`) vanno generati e distribuiti dall'ente ai propri membri;
+  vanno trattati come segreti (ruotabili cambiando l'env).
 - **Blocklist moderazione** (`backend/app/moderation.py`): la lista attuale è un
   placeholder di turpiloquio comune — va curata ed estesa (terminologia d'odio
   inclusa) come decisione di prodotto/legale per la giurisdizione.

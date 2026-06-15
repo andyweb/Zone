@@ -34,6 +34,12 @@ class User(Base):
     trust_score: Mapped[float] = mapped_column(
         Numeric, nullable=False, server_default="1.0"
     )
+    # ruolo: cittadino | volontario | operatore (accreditamento Protezione
+    # Civile via codice in registrazione). Pesa la fiducia e marca le
+    # segnalazioni come "verificate".
+    role: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="cittadino"
+    )
     expo_push_token: Mapped[str | None] = mapped_column(String(255))
     # Ultima posizione nota: usata SOLO per filtrare le push per raggio
     # (sezione 5.3). Scelta GDPR: facoltativa, sovrascritta (non storicizzata)
@@ -56,6 +62,11 @@ class Report(Base):
         BigInteger, ForeignKey("users.id"), nullable=False
     )
     category: Mapped[str] = mapped_column(String(40), nullable=False)
+    # ruolo dell'autore al momento della creazione (denormalizzato): permette di
+    # mostrare il badge "verificata" senza join, e resta stabile nel tempo.
+    author_role: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="cittadino"
+    )
     note: Mapped[str | None] = mapped_column(String(280))
     geom: Mapped[object] = mapped_column(
         Geography(geometry_type="POINT", srid=4326), nullable=False

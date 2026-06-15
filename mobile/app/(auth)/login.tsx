@@ -31,6 +31,7 @@ export default function LoginScreen() {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [enrollmentCode, setEnrollmentCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -39,7 +40,7 @@ export default function LoginScreen() {
     setBusy(true);
     try {
       if (mode === "login") await signIn(email.trim(), password);
-      else await signUp(email.trim(), password);
+      else await signUp(email.trim(), password, enrollmentCode.trim() || null);
       if (!(await isOnboardingDone())) router.replace("/onboarding");
     } catch (e) {
       const msg =
@@ -116,6 +117,17 @@ export default function LoginScreen() {
                   value={password}
                   onChangeText={setPassword}
                 />
+
+                {mode === "register" ? (
+                  <TextField
+                    label="Codice di accreditamento (opzionale)"
+                    icon="shield"
+                    placeholder="Solo per volontari / operatori PC"
+                    autoCapitalize="characters"
+                    value={enrollmentCode}
+                    onChangeText={setEnrollmentCode}
+                  />
+                ) : null}
 
                 {error ? <Text style={styles.error}>{error}</Text> : null}
 

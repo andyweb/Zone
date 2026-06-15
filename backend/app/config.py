@@ -62,6 +62,16 @@ class Settings(BaseSettings):
     push_location_max_age_minutes: int = 60
     expo_push_url: str = "https://exp.host/--/api/v2/push/send"
 
+    # --- Ruoli / accreditamento (verticale Protezione Civile) ---
+    # Codici distribuiti dall'ente per accreditare volontari/operatori in fase
+    # di registrazione. Se None, nessuno può ottenere quel ruolo (fail-safe).
+    enrollment_code_volontario: str | None = None
+    enrollment_code_operatore: str | None = None
+    # Peso di reputazione iniziale per ruolo (pesa i voti: vedi vote_report).
+    trust_cittadino: float = 1.0
+    trust_volontario: float = 2.0
+    trust_operatore: float = 3.0
+
     # --- Moderazione (sezione 8) — pre-rilascio ---
     # Filtro sul testo libero delle note (blocklist in app/moderation.py) e
     # segnalazione abusi ("flag" di una segnalazione) con auto-rimozione.

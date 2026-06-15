@@ -55,10 +55,14 @@ async function request<T>(
 }
 
 // --- Auth ---
-export function register(email: string, password: string): Promise<User> {
+export function register(
+  email: string,
+  password: string,
+  enrollmentCode?: string | null,
+): Promise<User> {
   return request<User>("/auth/register", {
     method: "POST",
-    body: { email, password },
+    body: { email, password, enrollment_code: enrollmentCode || null },
   });
 }
 

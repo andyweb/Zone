@@ -17,13 +17,18 @@ export interface Report {
   denials: number;
   status: "active" | "expired" | "removed";
   seconds_left: number;
+  author_role?: string; // cittadino | volontario | operatore
+  verified?: boolean; // true se l'autore è una fonte accreditata (PC)
   is_mine?: boolean; // valorizzato nel dettaglio: true se sono l'autore
 }
+
+export type Role = "cittadino" | "volontario" | "operatore";
 
 export interface User {
   id: number;
   email: string;
   trust_score: number;
+  role: Role;
 }
 
 export type Vote = 1 | -1;

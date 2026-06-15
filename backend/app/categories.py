@@ -23,14 +23,20 @@ class CategorySpec(TypedDict):
     ttl_minutes: int    # TTL base alla creazione
 
 
+# Set verticale "Protezione Civile": eventi di emergenza locali. Gli eventi
+# durano a lungo (una strada allagata resta tale per ore) → TTL ampi. La lista
+# definitiva resta una decisione dell'ente; per cambiarla basta editare qui.
 CATEGORIES: dict[str, CategorySpec] = {
-    "incidente": {"label": "Incidente", "color": "#E2483F", "ttl_minutes": 120},
-    "traffico": {"label": "Traffico", "color": "#EF7A27", "ttl_minutes": 90},
-    "lavori": {"label": "Lavori in corso", "color": "#F4B400", "ttl_minutes": 480},
-    "pericolo": {"label": "Pericolo", "color": "#B5341F", "ttl_minutes": 180},
-    "viabilita": {"label": "Strada chiusa", "color": "#8A5BD6", "ttl_minutes": 240},
-    "evento": {"label": "Evento / assembramento", "color": "#2F8FD6", "ttl_minutes": 240},
-    "meteo": {"label": "Allerta meteo", "color": "#1B9E8A", "ttl_minutes": 360},
+    "allagamento": {"label": "Allagamento", "color": "#2F6FD6", "ttl_minutes": 360},
+    "frana": {"label": "Frana / smottamento", "color": "#8A5A2B", "ttl_minutes": 720},
+    "strada_interrotta": {"label": "Strada interrotta", "color": "#8A5BD6", "ttl_minutes": 480},
+    "ostacolo": {"label": "Albero / ostacolo su strada", "color": "#EF7A27", "ttl_minutes": 240},
+    "incendio": {"label": "Incendio", "color": "#E2483F", "ttl_minutes": 180},
+    "blackout": {"label": "Black-out elettrico", "color": "#5B6470", "ttl_minutes": 240},
+    "persona_difficolta": {"label": "Persona in difficoltà", "color": "#B5341F", "ttl_minutes": 120},
+    "punto_raccolta": {"label": "Punto di raccolta", "color": "#1B9E8A", "ttl_minutes": 720},
+    "presidio": {"label": "Presidio / cancello", "color": "#2F8FD6", "ttl_minutes": 720},
+    "allerta_meteo": {"label": "Allerta meteo", "color": "#F4B400", "ttl_minutes": 360},
 }
 
 CATEGORY_KEYS: frozenset[str] = frozenset(CATEGORIES.keys())
