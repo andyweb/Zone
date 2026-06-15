@@ -28,3 +28,9 @@ yarn-error.*
 .idea/
 .vscode/
 *.swp
+
+# Tooling locale
+.claude/
+
+# PDF generati dai sorgenti .md (rigenerabili con marp/md-to-pdf)
+docs/*.pdf
