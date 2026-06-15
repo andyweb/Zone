@@ -64,13 +64,16 @@
     padding:34px 30px;width:370px;box-shadow:0 30px 80px rgba(0,0,0,.55)}
   #login .logo{width:62px;height:62px;border-radius:17px;margin:0 auto 18px;
     background:linear-gradient(140deg,#3b82f6,#1e3a8a);display:flex;align-items:center;justify-content:center;
-    font-size:30px;box-shadow:0 10px 26px rgba(37,99,235,.45)}
+    color:#fff;box-shadow:0 10px 26px rgba(37,99,235,.45)}
+  #login .logo svg{width:30px;height:30px}
   #login h1{margin:0;font-size:25px;text-align:center;letter-spacing:-.3px}
   #login p{margin:6px 0 24px;color:var(--muted);font-size:13px;text-align:center}
   #login .field{position:relative;margin-bottom:13px}
   #login .field .ic{position:absolute;left:13px;top:50%;transform:translateY(-50%);
-    color:var(--faint);font-size:15px;pointer-events:none}
-  #login .field input{padding:13px 13px 13px 38px;font-size:15px}
+    color:var(--faint);pointer-events:none;display:flex}
+  #login .field .ic svg{width:17px;height:17px;display:block}
+  #login .field input{padding:13px 13px 13px 40px;font-size:15px}
+  #login .field:focus-within .ic{color:var(--primary)}
   #login button{width:100%;background:var(--primary);color:#fff;border:0;border-radius:11px;
     padding:13px;font-weight:800;cursor:pointer;font-size:15px;margin-top:6px;transition:background .15s, transform .05s}
   #login button:hover{background:#1d4ed8}
@@ -110,15 +113,27 @@
 
 <div id="login">
   <div class="box">
-    <div class="logo">📍</div>
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+      </svg>
+    </div>
     <h1>Zone · Sala Operativa</h1>
     <p>Accesso riservato agli operatori accreditati</p>
     <div class="field">
-      <span class="ic">✉</span>
+      <span class="ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/>
+        </svg>
+      </span>
       <input type="email" id="liEmail" placeholder="Email" autocomplete="username" />
     </div>
     <div class="field">
-      <span class="ic">🔒</span>
+      <span class="ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </span>
       <input type="password" id="liPass" placeholder="Password" autocomplete="current-password" />
     </div>
     <button id="liBtn">Accedi</button>
