@@ -23,7 +23,7 @@ import { ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { queueRemoved, queueUpdated } from "../../lib/pendingReport";
 import { colors, font, radius, spacing } from "../../lib/theme";
-import type { Category, Report } from "../../lib/types";
+import type { Category, FlagReason, Report } from "../../lib/types";
 
 const NOTE_MAX = 280;
 
@@ -42,6 +42,7 @@ export default function ReportDetail() {
   const [noteText, setNoteText] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [flagging, setFlagging] = useState(false);
 
   useEffect(() => {
     if (!token || Number.isNaN(reportId)) return;
@@ -122,6 +123,39 @@ export default function ReportDetail() {
       const msg = e instanceof ApiError ? e.message : "Eliminazione non riuscita";
       Alert.alert("Errore", msg);
       setDeleting(false);
+    }
+  };
+
+  const reportAbuse = () => {
+    Alert.alert("Segnala abuso", "Perché vuoi segnalare questa segnalazione?", [
+      { text: "Spam o pubblicità", onPress: () => sendFlag("spam") },
+      { text: "Contenuto offensivo", onPress: () => sendFlag("offensivo") },
+      { text: "Falsa o fuorviante", onPress: () => sendFlag("falso") },
+      { text: "Altro", onPress: () => sendFlag("altro") },
+      { text: "Annulla", style: "cancel" },
+    ]);
+  };
+
+  const sendFlag = async (reason: FlagReason) => {
+    if (!token || !report) return;
+    setFlagging(true);
+    try {
+      const res = await api.flagReport(token, report.id, reason);
+      if (res.removed) {
+        queueRemoved(report.id); // soglia raggiunta: via dalla mappa al ritorno
+        Alert.alert(
+          "Grazie",
+          "La segnalazione è stata rimossa per le troppe segnalazioni ricevute.",
+          [{ text: "OK", onPress: () => router.back() }],
+        );
+      } else {
+        Alert.alert("Grazie", "Segnalazione inviata: la esamineremo.");
+      }
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "Invio non riuscito";
+      Alert.alert("Errore", msg);
+    } finally {
+      setFlagging(false);
     }
   };
 
@@ -227,6 +261,16 @@ export default function ReportDetail() {
               </Text>
             </View>
           )}
+
+          {active && !mine && !editing ? (
+            <Pressable
+              onPress={reportAbuse}
+              disabled={flagging}
+              style={styles.flagLink}
+            >
+              <Text style={styles.flagLinkText}>🚩 Segnala abuso</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         {active && !editing && (
@@ -354,6 +398,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   removed: { color: colors.danger, fontWeight: "700", fontSize: font.body },
+  flagLink: { alignSelf: "center", paddingVertical: spacing.sm },
+  flagLinkText: { color: colors.textMuted, fontWeight: "700", fontSize: font.small },
   actions: {
     flexDirection: "row",
     gap: spacing.md,

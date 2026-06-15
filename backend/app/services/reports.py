@@ -15,8 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..broker import broker
 from ..categories import ttl_minutes_for
 from ..config import settings
-from ..models import Report, ReportVote, User
-from ..schemas import ReportOut
+from ..models import Report, ReportFlag, ReportVote, User
+from ..moderation import find_blocked
+from ..schemas import FlagOut, ReportOut
 
 
 def _now() -> datetime:
@@ -42,6 +43,19 @@ def _clamp_expiry(expires_at: datetime) -> datetime:
 
 def _seconds_left(expires_at: datetime) -> int:
     return max(0, int((expires_at - _now()).total_seconds()))
+
+
+def _moderate_note(note: str | None) -> None:
+    """Rifiuta la nota se contiene linguaggio non ammesso (sezione 8).
+
+    Non riveliamo i termini trovati nella risposta (evita reverse-engineering
+    della blocklist). Il filtro è disattivabile via `moderation_enabled`.
+    """
+    if note and settings.moderation_enabled and find_blocked(note):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="la nota contiene linguaggio non ammesso",
+        )
 
 
 def report_to_out(
@@ -125,6 +139,7 @@ async def create_report(
     lat: float,
     lon: float,
 ) -> ReportOut:
+    _moderate_note(note)
     await _check_rate_limit(session, user)
     await _check_proximity_spam(session, user, category, lat, lon)
 
@@ -243,6 +258,7 @@ async def update_report_note(
             detail="puoi modificare solo le tue segnalazioni",
         )
 
+    _moderate_note(note)
     report.note = (note or "").strip() or None
     await session.commit()
     await session.refresh(report)
@@ -335,3 +351,53 @@ async def vote_report(
     payload = {"report_id": report.id} if removed else {"report": out.model_dump()}
     await broker.publish(event, lat, lon, payload)
     return out
+
+
+async def flag_report(
+    session: AsyncSession, user: User, report_id: int, reason: str
+) -> FlagOut:
+    """Segnalazione di abuso su una segnalazione (sezione 8).
+
+    Una flag per utente; non si segnala la propria. Oltre la soglia
+    `moderation_flag_threshold` la segnalazione viene auto-rimossa
+    (status='removed') in attesa di revisione e si emette l'evento SSE.
+    """
+    report = await session.get(Report, report_id)
+    if report is None or report.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="segnalazione inesistente o non più attiva",
+        )
+    if report.user_id == user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="non puoi segnalare la tua segnalazione",
+        )
+    existing = await session.get(ReportFlag, (report_id, user.id))
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="hai già segnalato questa segnalazione",
+        )
+
+    session.add(ReportFlag(report_id=report_id, user_id=user.id, reason=reason))
+    await session.flush()
+
+    flags = await session.scalar(
+        select(func.count())
+        .select_from(ReportFlag)
+        .where(ReportFlag.report_id == report_id)
+    )
+    flags = int(flags or 0)
+
+    removed = flags >= settings.moderation_flag_threshold
+    if removed:
+        report.status = "removed"
+
+    await session.commit()
+
+    if removed:
+        lat, lon = await _report_coords(session, report_id)
+        await broker.publish("removed", lat, lon, {"report_id": report_id})
+
+    return FlagOut(report_id=report_id, flags=flags, removed=removed)

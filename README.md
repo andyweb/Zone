@@ -63,6 +63,8 @@ Vedi `backend/.env.example`. Le principali:
 | `JWT_SECRET`   | **Obbligatorio cambiare.** Firma i token JWT.           |
 | `PUSH_ENABLED` | Flag notifiche push Expo (default `false`)              |
 | `PUSH_RADIUS_M`| Raggio (m) entro cui notificare gli utenti vicini       |
+| `MODERATION_ENABLED` | Filtro blocklist sul testo delle note (default `true`) |
+| `MODERATION_FLAG_THRESHOLD` | N. di flag distinte oltre cui auto-rimuovere una segnalazione (default 3) |
 | `RETENTION_DELETE_AFTER_MINUTES` | Finestra dopo cui i report scaduti/rimossi sono cancellati (default 24h) |
 | `DEBUG`        | Log SQL verboso                                         |
 
@@ -83,10 +85,12 @@ Tutte le risposte JSON. Auth via header `Authorization: Bearer <jwt>`.
 | GET    | `/reports/nearby`      | Segnalazioni attive (`lat, lon, radius_m`)    |
 | GET    | `/reports/{id}`        | Dettaglio di una segnalazione (deep link)     |
 | POST   | `/reports/{id}/vote`   | Vota (`+1` conferma / `-1` smentita)          |
+| POST   | `/reports/{id}/flag`   | Segnala abuso (`reason`: spam/offensivo/falso/altro) |
 | GET    | `/reports/stream`      | SSE: eventi live (`created`/`updated`/`removed`) |
 | PUT    | `/users/push-token`    | Registra l'Expo push token                    |
 | DELETE | `/users/push-token`    | Disattiva push + azzera posizione (logout)    |
 | PUT    | `/users/location`      | Aggiorna l'ultima posizione (solo filtro push) |
+| DELETE | `/users/me`            | Cancella account e tutti i dati (diritto all'oblio) |
 | GET    | `/health`              | Healthcheck                                   |
 
 ### SSE (`/reports/stream`)
@@ -130,6 +134,10 @@ Tutti i parametri (TTL, soglie, raggi, rate limit) sono centralizzati in
   segnalazioni `expired`/`removed` più vecchie di
   `retention_delete_after_minutes` (default 24h); i voti collegati spariscono
   per `ON DELETE CASCADE`. Niente archivio statico oltre il necessario.
+- **Moderazione** (`moderation.py`, `services/reports.py`): le note passano un
+  filtro su blocklist con normalizzazione anti-evasione prima di essere salvate;
+  la segnalazione abusi (`flag`) auto-rimuove una segnalazione oltre
+  `moderation_flag_threshold`. Tutto parametrizzato in `config.py`.
 
 ### Push geolocalizzate (sezione 5.3)
 
@@ -225,7 +233,21 @@ Note:
   storage posizione utente (`PUT /users/location`, singolo punto sovrascritto,
   azzerato al logout), tap notifica → dettaglio, e **retention** che cancella i
   dati scaduti/rimossi (job in `jobs.py`).
-- ⬜ **M6** — Pre-rilascio: vedi sotto.
+- 🟡 **M6** — Pre-rilascio (meccanismi backend implementati; restano le
+  decisioni di prodotto/legale, vedi sotto):
+  - ✅ **Moderazione del testo libero** (`app/moderation.py`): filtro su
+    blocklist con normalizzazione anti-evasione (accenti, leetspeak, lettere
+    ripetute, separatori), applicato in creazione e modifica nota. La nota con
+    linguaggio non ammesso è rifiutata con `422`. Disattivabile via
+    `MODERATION_ENABLED`. La blocklist è un placeholder da curare.
+  - ✅ **Segnalazione abusi** (`POST /reports/{id}/flag`): una flag per utente,
+    motivi a lista chiusa, **auto-rimozione** oltre `MODERATION_FLAG_THRESHOLD`
+    (evento SSE `removed`). Tabella `report_flags` (migrazione `0003`).
+  - ✅ **Cancellazione account / diritto all'oblio** (`DELETE /users/me`):
+    cancella utente, segnalazioni (con voti/flag in CASCADE), voti e flag su
+    segnalazioni altrui, e la posizione; emette `removed` per i report attivi.
+  - ⬜ Restano: testo legale (privacy/ToS), categorie definitive validate,
+    disclaimer in-app obbligatorio. Vedi sotto.
 
 ## ⚠️ Da completare PRIMA del rilascio pubblico
 
@@ -240,14 +262,17 @@ inventate (come da brief, sezioni 7–8):
   per cambiarle basta modificare quel file.
 - **Conformità legale e moderazione** (brief, sezione 8) — **non opzionale**
   per un'app pubblica:
-  - GDPR: informativa privacy, base giuridica e ToS restano da redigere. La
-    **minimizzazione/retention** è già attiva (M5): le segnalazioni
-    scadute/rimosse vengono cancellate dal job in `jobs.py`. Resta da valutare
-    la **cancellazione account** su richiesta dell'utente (diritto all'oblio).
-  - Sistema di segnalazione abusi ("report" di un report) e moderazione.
+  - GDPR: informativa privacy, base giuridica e ToS restano da **redigere**
+    (testo legale, non codice). La **minimizzazione/retention** è attiva (M5) e
+    la **cancellazione account** (diritto all'oblio) è implementata
+    (`DELETE /users/me`, vedi `app/services/account.py`).
+  - ✅ Sistema di segnalazione abusi ("report" di un report) e moderazione —
+    implementato (`POST /reports/{id}/flag` + auto-rimozione).
   - **Disclaimer in-app obbligatorio**: l'app non sostituisce le autorità né i
     numeri di emergenza (112/113/115) — da mostrare in onboarding e creazione.
-  - Moderazione/filtro del testo libero (`note`).
+  - ✅ Moderazione/filtro del testo libero (`note`) — implementato
+    (`app/moderation.py`); resta da **curare la blocklist** (terminologia
+    d'odio inclusa) come decisione di prodotto/legale.
   - Termini di servizio e responsabilità del gestore.
 
 > **Raccomandazione:** far validare categorie + privacy + ToS a un legale

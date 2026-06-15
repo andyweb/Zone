@@ -21,6 +21,8 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  // Cancella l'account lato server e scarta il token locale (diritto all'oblio).
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -75,9 +77,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    // A differenza del logout NON ingoiamo l'errore: se la cancellazione lato
+    // server fallisce, l'utente deve saperlo (l'account resta attivo).
+    const stored = await SecureStore.getItemAsync(TOKEN_KEY);
+    if (stored) await api.deleteAccount(stored);
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    setToken(null);
+  }, []);
+
   const value = useMemo(
-    () => ({ token, loading, signIn, signUp, signOut }),
-    [token, loading, signIn, signUp, signOut],
+    () => ({ token, loading, signIn, signUp, signOut, deleteAccount }),
+    [token, loading, signIn, signUp, signOut, deleteAccount],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -80,6 +80,32 @@ class VoteIn(BaseModel):
         return v
 
 
+# --- Segnalazione abusi (flag) ---
+# Lista CHIUSA dei motivi: validata come per le categorie.
+FLAG_REASONS: frozenset[str] = frozenset(
+    {"spam", "offensivo", "falso", "altro"}
+)
+
+
+class FlagIn(BaseModel):
+    reason: str
+
+    @field_validator("reason")
+    @classmethod
+    def _reason_in_closed_list(cls, v: str) -> str:
+        if v not in FLAG_REASONS:
+            raise ValueError(
+                f"motivo non valido; ammessi: {sorted(FLAG_REASONS)}"
+            )
+        return v
+
+
+class FlagOut(BaseModel):
+    report_id: int
+    flags: int          # numero totale di segnalazioni-abuso sulla segnalazione
+    removed: bool        # True se la soglia ha causato l'auto-rimozione
+
+
 class PushTokenIn(BaseModel):
     expo_push_token: str = Field(min_length=1, max_length=255)
 

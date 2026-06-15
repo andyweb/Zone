@@ -101,3 +101,27 @@ class ReportVote(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class ReportFlag(Base):
+    """Segnalazione di abuso su una segnalazione ("report di un report").
+
+    Una sola flag per utente per segnalazione (chiave primaria composta).
+    Oltre la soglia (`moderation_flag_threshold`) la segnalazione viene
+    auto-rimossa in attesa di revisione (sezione 8).
+    """
+
+    __tablename__ = "report_flags"
+
+    report_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("reports.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id"), primary_key=True
+    )
+    reason: Mapped[str] = mapped_column(String(20), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

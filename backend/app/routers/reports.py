@@ -13,6 +13,8 @@ from ..db import get_session
 from ..models import User
 from ..schemas import (
     CategoryOut,
+    FlagIn,
+    FlagOut,
     ReportCreateIn,
     ReportNoteUpdateIn,
     ReportOut,
@@ -100,3 +102,14 @@ async def vote(
     session: AsyncSession = Depends(get_session),
 ) -> ReportOut:
     return await svc.vote_report(session, user, report_id, payload.vote)
+
+
+@router.post("/reports/{report_id}/flag", response_model=FlagOut)
+async def flag(
+    report_id: int,
+    payload: FlagIn,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> FlagOut:
+    """Segnala un abuso su una segnalazione (moderazione, sezione 8)."""
+    return await svc.flag_report(session, user, report_id, payload.reason)

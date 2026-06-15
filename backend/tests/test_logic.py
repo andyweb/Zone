@@ -9,6 +9,7 @@ import pytest
 from app.broker import Subscriber, haversine_m
 from app.categories import is_valid_category, ttl_minutes_for
 from app.config import settings
+from app.moderation import find_blocked, is_clean, normalize
 from app.services.reports import _clamp_expiry, _now
 
 
@@ -39,3 +40,31 @@ def test_subscriber_covers():
     sub = Subscriber(lat=45.0, lon=9.0, radius_m=1000)
     assert sub.covers(45.0, 9.0)
     assert not sub.covers(46.0, 9.0)  # ~111 km a nord
+
+
+def test_moderazione_testo_pulito():
+    assert is_clean("Strada allagata vicino al ponte")
+    assert is_clean(None)
+    assert is_clean("")
+    assert find_blocked("traffico intenso in centro") == []
+
+
+def test_moderazione_rileva_turpiloquio():
+    assert not is_clean("che cazzo di traffico")
+    assert "cazzo" in find_blocked("che cazzo di traffico")
+
+
+def test_moderazione_evasioni():
+    # maiuscole + leetspeak + lettere ripetute + separatori
+    assert not is_clean("MERDA")
+    assert not is_clean("c4zz0")
+    assert not is_clean("caaaazzo")
+    assert not is_clean("c-a-z-z-o")
+    assert not is_clean("$tronzo")
+
+
+def test_normalize_collassa_ripetizioni():
+    # le ripetizioni si collassano a 1; la blocklist è collassata allo stesso
+    # modo, quindi `caaaazzo` resta intercettato (vedi test_moderazione_evasioni)
+    assert normalize("caaaazzo") == "cazo"
+    assert normalize("MERDA") == "merda"

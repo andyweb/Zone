@@ -62,6 +62,14 @@ class Settings(BaseSettings):
     push_location_max_age_minutes: int = 60
     expo_push_url: str = "https://exp.host/--/api/v2/push/send"
 
+    # --- Moderazione (sezione 8) — pre-rilascio ---
+    # Filtro sul testo libero delle note (blocklist in app/moderation.py) e
+    # segnalazione abusi ("flag" di una segnalazione) con auto-rimozione.
+    moderation_enabled: bool = True
+    # Numero di segnalazioni-abuso DISTINTE oltre il quale una segnalazione
+    # viene auto-rimossa (status='removed') in attesa di revisione.
+    moderation_flag_threshold: int = 3
+
     # --- Retention / GDPR (sezione 8) ---
     # Le segnalazioni scadute/rimosse vengono CANCELLATE (non solo marcate)
     # dopo questa finestra: minimizzazione dei dati. La finestra dà tempo ai

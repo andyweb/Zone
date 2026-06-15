@@ -26,7 +26,7 @@ import { registerForPushNotificationsAsync } from "../../lib/push";
 import type { Category, Report, SSEReportEvent } from "../../lib/types";
 
 export default function MapScreen() {
-  const { token, signOut } = useAuth();
+  const { token, signOut, deleteAccount } = useAuth();
   const router = useRouter();
 
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
@@ -98,6 +98,42 @@ export default function MapScreen() {
     });
     return () => sub.remove();
   }, [router]);
+
+  // Menu account: logout o cancellazione definitiva (diritto all'oblio, GDPR).
+  const confirmDeleteAccount = useCallback(() => {
+    Alert.alert(
+      "Eliminare l'account?",
+      "Verranno cancellati definitivamente il tuo account, le tue segnalazioni e i tuoi voti. L'azione è irreversibile.",
+      [
+        { text: "Annulla", style: "cancel" },
+        {
+          text: "Elimina account",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteAccount(); // il token diventa null → ritorno al login
+            } catch (e) {
+              const msg =
+                e instanceof api.ApiError ? e.message : "Eliminazione non riuscita";
+              Alert.alert("Errore", msg);
+            }
+          },
+        },
+      ],
+    );
+  }, [deleteAccount]);
+
+  const openAccountMenu = useCallback(() => {
+    Alert.alert("Account", undefined, [
+      { text: "Esci", onPress: () => void signOut() },
+      {
+        text: "Elimina account",
+        style: "destructive",
+        onPress: confirmDeleteAccount,
+      },
+      { text: "Annulla", style: "cancel" },
+    ]);
+  }, [signOut, confirmDeleteAccount]);
 
   const applyEvent = useCallback((ev: SSEReportEvent) => {
     setReports((prev) => {
@@ -245,8 +281,8 @@ export default function MapScreen() {
           >
             <Text style={styles.counterText}>{list.length} attive ›</Text>
           </Pressable>
-          <Pressable onPress={signOut} style={styles.logout}>
-            <Text style={styles.logoutText}>Esci</Text>
+          <Pressable onPress={openAccountMenu} style={styles.logout}>
+            <Text style={styles.logoutText}>Account</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -312,7 +348,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
   },
-  logoutText: { color: "#E24B4A", fontWeight: "700" },
+  logoutText: { color: "#0E1729", fontWeight: "700" },
   fab: {
     position: "absolute",
     right: 20,

@@ -112,6 +112,12 @@ Concetti chiave:
   una segnalazione nel loro raggio; il tap apre il dettaglio.
 - **Scadenza automatica** e **retention**: le segnalazioni scadute/rimosse
   vengono cancellate definitivamente dopo una finestra (default 24h).
+- **Moderazione del testo**: le note passano un filtro su blocklist (con
+  normalizzazione anti-evasione) prima di essere salvate.
+- **Segnalazione abusi**: dal dettaglio si può segnalare una segnalazione
+  altrui; oltre una soglia di flag distinte viene auto-rimossa.
+- **Cancellazione account** (diritto all'oblio): dal menu "Account" l'utente
+  elimina definitivamente account, segnalazioni e voti.
 
 ---
 
@@ -153,6 +159,14 @@ query spaziali.
 | vote | smallint | +1 / −1 |
 | created_at | timestamptz | |
 
+**report_flags** (segnalazione abusi, migrazione `0003`)
+| Campo | Tipo | Note |
+|---|---|---|
+| report_id | bigint FK→reports (ON DELETE CASCADE) | PK composta |
+| user_id | bigint FK→users | PK composta → 1 flag/utente |
+| reason | varchar(20) | lista chiusa: spam/offensivo/falso/altro |
+| created_at | timestamptz | |
+
 ---
 
 ## 6. API REST
@@ -169,10 +183,12 @@ Base: `https://zone.delibra.info` (prod) — auth via header
 | GET | `/reports/nearby` | Segnalazioni attive (`lat, lon, radius_m`) |
 | GET | `/reports/{id}` | Dettaglio (deep link) |
 | POST | `/reports/{id}/vote` | Vota (`+1` / `-1`) |
+| POST | `/reports/{id}/flag` | Segnala abuso (`reason`: spam/offensivo/falso/altro) |
 | GET | `/reports/stream` | SSE: `created` / `updated` / `removed` |
 | PUT | `/users/push-token` | Registra Expo push token |
 | DELETE | `/users/push-token` | Disattiva push + azzera posizione (logout) |
 | PUT | `/users/location` | Aggiorna ultima posizione (solo filtro push) |
+| DELETE | `/users/me` | Cancella account e tutti i dati (diritto all'oblio) |
 | GET | `/health` | Healthcheck → `{"status":"ok"}` |
 
 ### SSE — `/reports/stream`
@@ -207,6 +223,13 @@ magico nel codice).
 - **Retention / GDPR** (job ogni 60 min): **cancella definitivamente** i report
   `expired`/`removed` più vecchi di 24h; i voti spariscono per `ON DELETE
   CASCADE`. Minimizzazione dei dati.
+- **Moderazione** (`moderation.py`): le note passano un filtro su blocklist con
+  normalizzazione anti-evasione (accenti, leetspeak, ripetizioni, separatori)
+  in creazione/modifica → nota non ammessa rifiutata con `422`. La segnalazione
+  abusi (`flag`, una per utente) auto-rimuove oltre `MODERATION_FLAG_THRESHOLD`.
+- **Cancellazione account** (`services/account.py`): `DELETE /users/me` cancella
+  utente, segnalazioni (con voti/flag in CASCADE), voti/flag su report altrui e
+  posizione; emette `removed` per i report attivi. Diritto all'oblio.
 - **Push geolocalizzate** (dietro `PUSH_ENABLED`): alla creazione notifica via
   Expo **solo** gli utenti la cui ultima posizione è entro `PUSH_RADIUS_M`
   (1500 m) ed è recente (≤60 min); l'autore è escluso. La posizione è un
@@ -223,9 +246,9 @@ mobile/
     index.tsx            # redirect iniziale (auth/onboarding/mappa)
     onboarding.tsx       # disclaimer
     (auth)/login.tsx     # login + registrazione
-    (app)/map.tsx        # mappa: marker, raggio, SSE live
-    (app)/create.tsx     # creazione: categoria + pin + nota
-    report/[id].tsx      # dettaglio + voto (deep-linkabile)
+    (app)/map.tsx        # mappa: marker, raggio, SSE live, menu Account
+    (app)/create.tsx     # creazione: categoria + pin + nota + disclaimer
+    report/[id].tsx      # dettaglio + voto + segnala abuso (deep-linkabile)
   components/
     CategoryPicker.tsx   # scelta categoria
     Countdown.tsx        # countdown TTL
@@ -261,12 +284,14 @@ backend/
     schemas.py         # Pydantic
     auth.py            # JWT, hashing bcrypt
     broker.py          # broker SSE in-memory (pub/sub per area)
+    moderation.py      # filtro blocklist note (normalizzazione anti-evasione)
     jobs.py            # APScheduler: scadenza + retention
     routers/           # auth, reports, stream (SSE), users
     services/
-      reports.py       # TTL, voto, anti-abuso, query PostGIS
+      reports.py       # TTL, voto, anti-abuso, flag, query PostGIS
+      account.py       # cancellazione account (diritto all'oblio)
       notify.py        # push Expo (dietro flag)
-  alembic/             # migrazioni (0001_init, 0002_user_location_retention)
+  alembic/             # migrazioni (0001_init, 0002_…, 0003_report_flags)
   Dockerfile
   entrypoint.sh        # attende DB, applica migrazioni, avvia API
 proxy/nginx.conf       # reverse proxy SSE-friendly (/reports/stream)
@@ -319,6 +344,8 @@ Vedi [PROVA_SU_DEVICE.md](PROVA_SU_DEVICE.md) per il giro end-to-end.
 | `JWT_ACCESS_TTL_MINUTES` | scadenza token (default 24h) |
 | `PUSH_ENABLED` | abilita le push Expo (default `false`) |
 | `PUSH_RADIUS_M` | raggio (m) per notificare gli utenti vicini |
+| `MODERATION_ENABLED` | filtro blocklist sulle note (default `true`) |
+| `MODERATION_FLAG_THRESHOLD` | n. di flag distinte per auto-rimuovere (def 3) |
 | `RETENTION_DELETE_AFTER_MINUTES` | finestra prima della cancellazione (def 24h) |
 | `DEBUG` | log SQL verboso |
 
@@ -338,8 +365,10 @@ Milestone implementate:
 - ✅ **M4** — Mobile Expo (auth, mappa, creazione, voto, disclaimer).
 - ✅ **M5** — Push Expo con filtro geografico server-side, storage posizione,
   retention/cancellazione dati.
+- 🟢 **M6** — Moderazione note (blocklist), segnalazione abusi con auto-rimozione,
+  cancellazione account (diritto all'oblio): **meccanismi implementati** lato
+  backend e UI mobile. Restano le decisioni di prodotto/legale (sotto).
 - 🟡 **Deploy** — Backend in produzione su DGX/Cloudflare; app su TestFlight.
-- ⬜ **M6** — Pre-rilascio (sotto).
 
 ### ⚠️ Da completare prima della pubblicazione sugli store
 - **Categorie** (`backend/app/categories.py`): set di default reale (Incidente,
@@ -347,13 +376,12 @@ Milestone implementate:
   definitiva resta una decisione di prodotto con implicazioni legali, da
   validare per la giurisdizione (evitando categorie sensibili); il sistema regge
   qualunque set purché resti una lista chiusa (basta editare quel file).
-- **Conformità legale / moderazione** (non opzionale per app pubblica):
-  - GDPR: informativa privacy, base giuridica, ToS; **cancellazione account**
-    su richiesta (la minimizzazione/retention è già attiva).
-  - Sistema di segnalazione abusi (report di un report) e moderazione.
-  - Moderazione/filtro del testo libero (`note`).
-  - Disclaimer in-app obbligatorio (già presente in onboarding — verificare i
-    requisiti definitivi).
+- **Blocklist moderazione** (`backend/app/moderation.py`): la lista attuale è un
+  placeholder di turpiloquio comune — va curata ed estesa (terminologia d'odio
+  inclusa) come decisione di prodotto/legale per la giurisdizione.
+- **Testo legale** (non è codice): informativa privacy, base giuridica e ToS da
+  far **redigere a un legale**. I meccanismi GDPR (minimizzazione, retention,
+  cancellazione account) sono già attivi.
 - **Mappa Android**: Google Maps API key in `app.json` (iOS usa Apple Maps).
 
 > Far validare categorie + privacy + ToS a un legale prima della pubblicazione:

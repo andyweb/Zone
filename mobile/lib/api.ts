@@ -9,6 +9,8 @@ import EventSource from "react-native-sse";
 import { API_URL, POLL_INTERVAL_MS } from "./config";
 import type {
   Category,
+  FlagReason,
+  FlagResult,
   Report,
   SSEEventType,
   SSEReportEvent,
@@ -122,6 +124,24 @@ export function updateReportNote(
 // Eliminazione definitiva (solo autore).
 export function deleteReport(token: string, reportId: number): Promise<void> {
   return request<void>(`/reports/${reportId}`, { method: "DELETE", token });
+}
+
+// Segnala un abuso su una segnalazione altrui (moderazione community).
+export function flagReport(
+  token: string,
+  reportId: number,
+  reason: FlagReason,
+): Promise<FlagResult> {
+  return request<FlagResult>(`/reports/${reportId}/flag`, {
+    method: "POST",
+    body: { reason },
+    token,
+  });
+}
+
+// Cancella l'account e tutti i dati collegati (diritto all'oblio, GDPR).
+export function deleteAccount(token: string): Promise<void> {
+  return request<void>("/users/me", { method: "DELETE", token });
 }
 
 export function setPushToken(token: string, expoPushToken: string): Promise<User> {
