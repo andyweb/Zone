@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .config import settings
 from .db import get_session
 from .models import User
+from .roles import OPERATORE
 
 bearer_scheme = HTTPBearer(auto_error=True)
 
@@ -69,5 +70,15 @@ async def get_current_user(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="utente inesistente"
+        )
+    return user
+
+
+async def require_operator(user: User = Depends(get_current_user)) -> User:
+    """Accesso riservato al ruolo operatore (cruscotto sala operativa)."""
+    if user.role != OPERATORE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="accesso riservato agli operatori",
         )
     return user

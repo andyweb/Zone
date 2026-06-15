@@ -127,6 +127,9 @@ Concetti chiave:
 - **Foto geolocalizzata**: si può allegare una foto alla segnalazione (scatto o
   galleria); lato server è re-encodata in JPEG, **EXIF rimossi** (privacy) e
   ridimensionata. Visibile nel dettaglio.
+- **Cruscotto sala operativa** (web, `/dashboard`): pagina riservata al ruolo
+  operatore con mappa di **tutte** le attive, lista filtrabile (categoria, solo
+  verificate, ricerca), foto, voti, countdown, statistiche e auto-refresh.
 
 ---
 
@@ -193,6 +196,7 @@ Base: `https://zone.delibra.info` (prod) — auth via header
 | GET | `/categories` | Lista chiusa categorie (chiave, label, colore, TTL) |
 | POST | `/reports` | Crea segnalazione (`category, note?, lat, lon`) |
 | GET | `/reports/nearby` | Segnalazioni attive (`lat, lon, radius_m`) |
+| GET | `/reports/all` | Tutte le attive — vista d'insieme (**solo operatore**) |
 | GET | `/reports/{id}` | Dettaglio (deep link) |
 | POST | `/reports/{id}/vote` | Vota (`+1` / `-1`) |
 | POST | `/reports/{id}/flag` | Segnala abuso (`reason`: spam/offensivo/falso/altro) |
@@ -306,6 +310,7 @@ backend/
       account.py       # cancellazione account (diritto all'oblio)
       photos.py        # upload foto: validazione, re-encode JPEG, strip EXIF
       notify.py        # push Expo (dietro flag)
+    static/            # page.html (landing) + dashboard.html (sala operativa)
   alembic/             # migrazioni (0001…0004_roles, 0005_report_photo)
   media/               # foto delle segnalazioni (volume montato, fuori dal repo)
   Dockerfile
@@ -414,6 +419,7 @@ Milestone implementate:
 ## 13. Riferimenti rapidi
 
 - Backend prod: `https://zone.delibra.info` (`/health`, `/docs`)
+- Cruscotto sala operativa: `https://zone.delibra.info/dashboard` (login operatore)
 - Repo: `github.com/andyweb/Zone`
 - Bundle id iOS: `com.andydiego.segnalazionilive`
 - Progetto EAS: `@andydiego/segnalazioni-live`

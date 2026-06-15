@@ -6,7 +6,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..auth import get_current_user
+from ..auth import get_current_user, require_operator
 from ..categories import CATEGORIES
 from ..config import settings
 from ..db import get_session
@@ -45,6 +45,15 @@ async def create_report(
     )
     await notify_nearby_users(session, out, exclude_user_id=user.id)
     return out
+
+
+@router.get("/reports/all", response_model=list[ReportOut])
+async def all_reports(
+    user: User = Depends(require_operator),
+    session: AsyncSession = Depends(get_session),
+) -> list[ReportOut]:
+    """Vista d'insieme per la sala operativa: tutte le attive (solo operatore)."""
+    return await svc.all_active_reports(session)
 
 
 @router.get("/reports/nearby", response_model=list[ReportOut])

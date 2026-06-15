@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zone — Sala Operativa</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+  :root{
+    --bg:#0b1120; --panel:#121a2b; --panel2:#0f1626; --line:#243149;
+    --text:#e6edf7; --muted:#93a1b8; --faint:#5e6e88;
+    --primary:#3b82c4; --ok:#16a34a; --danger:#e2483f; --warn:#f4b400;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--text)}
+  #app{display:flex;flex-direction:column;height:100%}
+  header{display:flex;align-items:center;gap:14px;padding:10px 16px;
+         background:var(--panel);border-bottom:1px solid var(--line)}
+  header .brand{font-weight:800;letter-spacing:.3px;font-size:18px}
+  header .brand small{color:var(--muted);font-weight:600}
+  header .spacer{flex:1}
+  header .meta{color:var(--muted);font-size:13px}
+  header button{background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer}
+  header button:hover{border-color:var(--primary)}
+  main{flex:1;display:flex;min-height:0}
+  #map{flex:1;min-width:0;background:#0a0f1c}
+  aside{width:380px;max-width:42vw;background:var(--panel2);border-left:1px solid var(--line);
+        display:flex;flex-direction:column;min-height:0}
+  .filters{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+  .stats{display:flex;gap:10px}
+  .stat{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+  .stat b{display:block;font-size:22px}
+  .stat span{color:var(--muted);font-size:12px}
+  .row{display:flex;gap:8px}
+  select,input[type=search],input[type=text],input[type=password]{
+    width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);
+    border-radius:8px;padding:9px 10px;font-size:14px}
+  label.check{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;cursor:pointer;user-select:none}
+  .list{flex:1;overflow:auto;padding:8px}
+  .card{display:flex;gap:10px;padding:10px;border:1px solid var(--line);border-radius:10px;
+        margin-bottom:8px;background:var(--panel);cursor:pointer}
+  .card:hover{border-color:var(--primary)}
+  .card .dot{width:12px;height:12px;border-radius:50%;margin-top:4px;flex:0 0 auto}
+  .card .body{flex:1;min-width:0}
+  .card .cat{font-weight:800;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .pill{font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px}
+  .pill.ok{background:rgba(22,163,74,.18);color:#5fe39e}
+  .card .note{color:var(--muted);font-size:13px;margin:3px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card .sub{color:var(--faint);font-size:12px;display:flex;gap:12px}
+  .card .sub .v-ok{color:#5fe39e}.card .sub .v-no{color:#f08a83}
+  .card img{width:54px;height:54px;border-radius:8px;object-fit:cover;flex:0 0 auto;background:#0a0f1c}
+  .empty{color:var(--faint);text-align:center;padding:30px 12px;font-size:14px}
+  /* login overlay */
+  #login{position:fixed;inset:0;background:rgba(6,10,20,.92);display:flex;align-items:center;justify-content:center;z-index:1000}
+  #login .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;width:340px}
+  #login h1{margin:0 0 4px;font-size:22px}
+  #login p{margin:0 0 18px;color:var(--muted);font-size:13px}
+  #login .field{margin-bottom:12px}
+  #login button{width:100%;background:var(--primary);color:#fff;border:0;border-radius:10px;
+    padding:12px;font-weight:800;cursor:pointer;font-size:15px}
+  #login .err{color:#f08a83;font-size:13px;margin-top:10px;min-height:18px;font-weight:600}
+  .leaflet-popup-content{font-size:13px}
+  .leaflet-popup-content img{width:100%;border-radius:8px;margin-top:6px}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">Zone <small>· Sala Operativa</small></div>
+    <div class="spacer"></div>
+    <div class="meta" id="meta">—</div>
+    <button id="refreshBtn" title="Aggiorna ora">↻</button>
+    <button id="logoutBtn">Esci</button>
+  </header>
+  <main>
+    <div id="map"></div>
+    <aside>
+      <div class="filters">
+        <div class="stats">
+          <div class="stat"><b id="stTot">0</b><span>attive</span></div>
+          <div class="stat"><b id="stVer">0</b><span>verificate</span></div>
+          <div class="stat"><b id="stShown">0</b><span>mostrate</span></div>
+        </div>
+        <select id="fCat"><option value="">Tutte le categorie</option></select>
+        <input type="search" id="fSearch" placeholder="Cerca nelle note…" />
+        <label class="check"><input type="checkbox" id="fVerified" /> Solo fonti verificate</label>
+      </div>
+      <div class="list" id="list"></div>
+    </aside>
+  </main>
+</div>
+
+<div id="login">
+  <div class="box">
+    <h1>Sala Operativa</h1>
+    <p>Accesso riservato agli operatori accreditati.</p>
+    <div class="field"><input type="email" id="liEmail" placeholder="Email" autocomplete="username" /></div>
+    <div class="field"><input type="password" id="liPass" placeholder="Password" autocomplete="current-password" /></div>
+    <button id="liBtn">Accedi</button>
+    <div class="err" id="liErr"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+(function(){
+  "use strict";
+  var TOKEN_KEY = "zone_op_token";
+  var REFRESH_MS = 12000;
+  var token = localStorage.getItem(TOKEN_KEY);
+  var cats = {};            // key -> {label,color}
+  var reports = [];         // ultima fetch
+  var markers = {};         // id -> leaflet marker
+  var map, layer, timer, selectedId = null;
+
+  function $(id){ return document.getElementById(id); }
+  function authHeaders(){ return { "Authorization": "Bearer " + token }; }
+
+  function fmtTtl(s){
+    s = Math.max(0, s|0);
+    var h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+    if (h > 0) return "scade tra " + h + "h " + m + "m";
+    if (m > 0) return "scade tra " + m + "m";
+    return "in scadenza";
+  }
+  function catOf(k){ return cats[k] || {label:k, color:"#888"}; }
+
+  // --- API ---
+  async function api(path, opts){
+    opts = opts || {};
+    opts.headers = Object.assign({}, opts.headers || {}, token ? authHeaders() : {});
+    var res = await fetch(path, opts);
+    if (res.status === 401 || res.status === 403) { var e = new Error(res.status===403?"forbidden":"unauth"); e.code=res.status; throw e; }
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.status === 204 ? null : res.json();
+  }
+
+  async function doLogin(){
+    var email = $("liEmail").value.trim(), pass = $("liPass").value;
+    $("liErr").textContent = "";
+    try{
+      var r = await fetch("/auth/login", {method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({email:email, password:pass})});
+      if(!r.ok){ $("liErr").textContent = "Credenziali non valide."; return; }
+      var data = await r.json();
+      token = data.access_token;
+      // verifica che sia operatore provando l'endpoint riservato
+      var test = await fetch("/reports/all", {headers: authHeaders()});
+      if(test.status === 403){ token=null; $("liErr").textContent = "Account non abilitato (serve il ruolo operatore)."; return; }
+      if(!test.ok){ $("liErr").textContent = "Errore di accesso."; return; }
+      localStorage.setItem(TOKEN_KEY, token);
+      $("login").classList.add("hidden");
+      await start();
+    }catch(e){ $("liErr").textContent = "Connessione non riuscita."; }
+  }
+
+  function logout(){
+    token = null; localStorage.removeItem(TOKEN_KEY);
+    if (timer) clearInterval(timer);
+    $("login").classList.remove("hidden");
+  }
+
+  // --- Rendering ---
+  function passesFilter(r){
+    var c = $("fCat").value, q = $("fSearch").value.trim().toLowerCase(), onlyV = $("fVerified").checked;
+    if (c && r.category !== c) return false;
+    if (onlyV && !r.verified) return false;
+    if (q && !((r.note||"").toLowerCase().indexOf(q) >= 0)) return false;
+    return true;
+  }
+
+  function popupHtml(r){
+    var c = catOf(r.category);
+    var html = '<b>' + (r.verified ? '✔ ' : '') + c.label + '</b><br>';
+    if (r.note) html += escapeHtml(r.note) + '<br>';
+    html += '<span style="color:#16a34a">▲ ' + r.confirms + '</span> &nbsp; ' +
+            '<span style="color:#e2483f">▼ ' + r.denials + '</span><br>' +
+            '<small>' + fmtTtl(r.seconds_left) + '</small>';
+    if (r.photo_url) html += '<img src="' + r.photo_url + '" alt="foto" />';
+    return html;
+  }
+
+  function escapeHtml(s){ return s.replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+
+  function render(){
+    var shown = reports.filter(passesFilter);
+    // stats
+    $("stTot").textContent = reports.length;
+    $("stVer").textContent = reports.filter(function(r){return r.verified;}).length;
+    $("stShown").textContent = shown.length;
+
+    // markers
+    layer.clearLayers(); markers = {};
+    shown.forEach(function(r){
+      var c = catOf(r.category);
+      var m = L.circleMarker([r.lat, r.lon], {
+        radius: r.verified ? 9 : 7, fillColor: c.color, fillOpacity: .9,
+        color: r.verified ? "#ffffff" : "#0b1120", weight: r.verified ? 3 : 1.5
+      }).bindPopup(popupHtml(r));
+      m.addTo(layer); markers[r.id] = m;
+    });
+
+    // list
+    var list = $("list");
+    if (!shown.length){ list.innerHTML = '<div class="empty">Nessuna segnalazione attiva con questi filtri.</div>'; return; }
+    list.innerHTML = "";
+    shown.forEach(function(r){
+      var c = catOf(r.category);
+      var card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML =
+        '<div class="dot" style="background:'+c.color+'"></div>' +
+        '<div class="body">' +
+          '<div class="cat">'+escapeHtml(c.label)+ (r.verified?' <span class="pill ok">✔ VERIFICATA</span>':'') +'</div>' +
+          (r.note ? '<div class="note">'+escapeHtml(r.note)+'</div>' : '<div class="note" style="font-style:italic;color:#5e6e88">nessuna nota</div>') +
+          '<div class="sub"><span class="v-ok">▲ '+r.confirms+'</span><span class="v-no">▼ '+r.denials+'</span><span>'+fmtTtl(r.seconds_left)+'</span></div>' +
+        '</div>' +
+        (r.photo_url ? '<img src="'+r.photo_url+'" alt="foto" />' : '');
+      card.onclick = function(){
+        map.setView([r.lat, r.lon], Math.max(map.getZoom(), 15));
+        if (markers[r.id]) markers[r.id].openPopup();
+      };
+      list.appendChild(card);
+    });
+  }
+
+  async function loadReports(fit){
+    try{
+      reports = await api("/reports/all");
+      render();
+      $("meta").textContent = "Aggiornato alle " + new Date().toLocaleTimeString("it-IT") +
+                              " · " + reports.length + " attive";
+      if (fit){
+        var pts = reports.map(function(r){return [r.lat, r.lon];});
+        if (pts.length) map.fitBounds(pts, {padding:[40,40], maxZoom:14});
+      }
+    }catch(e){
+      if (e.code === 401 || e.code === 403){ logout(); }
+    }
+  }
+
+  async function loadCategories(){
+    try{
+      var arr = await fetch("/categories").then(function(r){return r.json();});
+      cats = {}; var sel = $("fCat");
+      arr.forEach(function(c){
+        cats[c.key] = {label:c.label, color:c.color};
+        var o = document.createElement("option"); o.value=c.key; o.textContent=c.label; sel.appendChild(o);
+      });
+    }catch(e){}
+  }
+
+  async function start(){
+    if (!map){
+      map = L.map("map", {zoomControl:true}).setView([41.9, 12.5], 6);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19, attribution: "© OpenStreetMap"
+      }).addTo(map);
+      layer = L.layerGroup().addTo(map);
+    }
+    await loadCategories();
+    await loadReports(true);
+    if (timer) clearInterval(timer);
+    timer = setInterval(function(){ loadReports(false); }, REFRESH_MS);
+  }
+
+  // --- Eventi ---
+  $("liBtn").onclick = doLogin;
+  $("liPass").addEventListener("keydown", function(e){ if(e.key==="Enter") doLogin(); });
+  $("logoutBtn").onclick = logout;
+  $("refreshBtn").onclick = function(){ loadReports(false); };
+  ["fCat","fSearch","fVerified"].forEach(function(id){
+    $(id).addEventListener("input", render);
+    $(id).addEventListener("change", render);
+  });
+
+  // --- Bootstrap ---
+  (async function(){
+    if (token){
+      try{
+        var t = await fetch("/reports/all", {headers: authHeaders()});
+        if (t.ok){ $("login").classList.add("hidden"); await start(); return; }
+      }catch(e){}
+      logout(); // token assente/scaduto/non operatore
+    }
+  })();
+})();
+</script>
+</body>
+</html>

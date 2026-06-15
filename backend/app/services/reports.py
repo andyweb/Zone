@@ -223,6 +223,43 @@ async def nearby_reports(
     ]
 
 
+async def all_active_reports(session: AsyncSession) -> list[ReportOut]:
+    """Tutte le segnalazioni attive (cruscotto sala operativa, vista d'insieme).
+
+    Niente filtro per raggio: l'operatore vede l'intera area operativa. I volumi
+    di un pilota sono bassi; per scalare si aggiungerebbe un filtro bbox.
+    """
+    sql = text(
+        """
+        SELECT id, category, author_role, note, photo_path, confirms, denials, status,
+               ST_Y(geom::geometry) AS lat,
+               ST_X(geom::geometry) AS lon,
+               EXTRACT(EPOCH FROM (expires_at - now())) AS seconds_left
+        FROM reports
+        WHERE status = 'active' AND expires_at > now()
+        ORDER BY created_at DESC
+        """
+    )
+    rows = (await session.execute(sql)).mappings()
+    return [
+        ReportOut(
+            id=r["id"],
+            category=r["category"],
+            note=r["note"],
+            lat=r["lat"],
+            lon=r["lon"],
+            confirms=r["confirms"],
+            denials=r["denials"],
+            status=r["status"],
+            seconds_left=max(0, int(r["seconds_left"])),
+            author_role=r["author_role"],
+            verified=is_verified(r["author_role"]),
+            photo_url=r["photo_path"],
+        )
+        for r in rows
+    ]
+
+
 async def _report_coords(session: AsyncSession, report_id: int) -> tuple[float, float]:
     row = (
         await session.execute(
