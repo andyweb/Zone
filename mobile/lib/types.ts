@@ -19,6 +19,7 @@ export interface Report {
   seconds_left: number;
   author_role?: string; // cittadino | volontario | operatore
   verified?: boolean; // true se l'autore è una fonte accreditata (PC)
+  photo_url?: string | null; // URL relativo della foto allegata, se presente
   is_mine?: boolean; // valorizzato nel dettaglio: true se sono l'autore
 }
 

@@ -2,9 +2,11 @@
 // (anteprima → selettore a tutto schermo) → nota opzionale → invio.
 
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -41,6 +43,7 @@ export default function CreateReport() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [category, setCategory] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [point, setPoint] = useState({ lat: initialLat, lon: initialLon });
   const [busy, setBusy] = useState(false);
 
@@ -63,6 +66,38 @@ export default function CreateReport() {
     });
   };
 
+  const addPhoto = () => {
+    Alert.alert("Aggiungi foto", undefined, [
+      { text: "Scatta foto", onPress: () => takePhoto("camera") },
+      { text: "Scegli dalla galleria", onPress: () => takePhoto("library") },
+      { text: "Annulla", style: "cancel" },
+    ]);
+  };
+
+  const takePhoto = async (source: "camera" | "library") => {
+    const perm =
+      source === "camera"
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        "Permesso negato",
+        source === "camera"
+          ? "Serve il permesso per usare la fotocamera."
+          : "Serve il permesso per accedere alle foto.",
+      );
+      return;
+    }
+    const result =
+      source === "camera"
+        ? await ImagePicker.launchCameraAsync({ quality: 0.7 })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ["images"],
+            quality: 0.7,
+          });
+    if (!result.canceled && result.assets?.[0]) setPhoto(result.assets[0]);
+  };
+
   const submit = async () => {
     if (!token) return;
     if (!category) {
@@ -77,8 +112,25 @@ export default function CreateReport() {
         lat: point.lat,
         lon: point.lon,
       });
+      // Foto opzionale: caricata dopo la creazione. Se fallisce, la
+      // segnalazione resta comunque valida (avviso non bloccante).
+      let finalReport = created;
+      if (photo) {
+        try {
+          finalReport = await api.uploadReportPhoto(token, created.id, {
+            uri: photo.uri,
+            mimeType: photo.mimeType,
+            fileName: photo.fileName,
+          });
+        } catch {
+          Alert.alert(
+            "Foto non caricata",
+            "La segnalazione è stata creata, ma la foto non è stata caricata.",
+          );
+        }
+      }
       // Deposita la segnalazione: la mappa la mostra subito al ritorno.
-      queueCreated(created);
+      queueCreated(finalReport);
       router.back();
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Invio non riuscito";
@@ -152,6 +204,22 @@ export default function CreateReport() {
           <Text style={styles.counter}>
             {note.length}/{NOTE_MAX}
           </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Foto (opzionale)</Text>
+          {photo ? (
+            <View style={styles.photoBox}>
+              <Image source={{ uri: photo.uri }} style={styles.photo} />
+              <Pressable style={styles.photoRemove} onPress={() => setPhoto(null)}>
+                <Text style={styles.photoRemoveText}>✕</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable style={styles.photoAdd} onPress={addPhoto}>
+              <Text style={styles.photoAddText}>＋ Aggiungi foto</Text>
+            </Pressable>
+          )}
         </View>
 
         <Disclaimer compact />
@@ -236,6 +304,38 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: font.tiny,
   },
+  photoAdd: {
+    height: 120,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.glassBorder,
+    borderStyle: "dashed",
+    backgroundColor: colors.glassInput,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoAddText: { color: colors.primary, fontWeight: "700", fontSize: font.body },
+  photoBox: {
+    height: 220,
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    ...shadow.card,
+  },
+  photo: { width: "100%", height: "100%" },
+  photoRemove: {
+    position: "absolute",
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(15,23,41,0.66)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoRemoveText: { color: "#fff", fontWeight: "800", fontSize: 16 },
   footer: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,

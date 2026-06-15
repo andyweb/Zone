@@ -19,6 +19,7 @@ from sqlalchemy import text
 from .broker import broker
 from .config import settings
 from .db import SessionLocal
+from .services.photos import delete_report_photo
 
 logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
@@ -57,22 +58,29 @@ async def purge_old_reports() -> None:
     archivio oltre il necessario.
     """
     async with SessionLocal() as session:
-        result = await session.execute(
-            text(
-                """
-                DELETE FROM reports
-                WHERE status IN ('expired', 'removed')
-                  AND expires_at < now() - make_interval(mins => :age)
-                """
-            ),
-            {"age": settings.retention_delete_after_minutes},
-        )
+        rows = (
+            await session.execute(
+                text(
+                    """
+                    DELETE FROM reports
+                    WHERE status IN ('expired', 'removed')
+                      AND expires_at < now() - make_interval(mins => :age)
+                    RETURNING photo_path
+                    """
+                ),
+                {"age": settings.retention_delete_after_minutes},
+            )
+        ).mappings().all()
         await session.commit()
 
-    if result.rowcount:
+    # Rimuove anche i file foto collegati (niente orfani sul volume).
+    for r in rows:
+        delete_report_photo(r["photo_path"])
+
+    if rows:
         logger.info(
             "retention: %d segnalazioni cancellate definitivamente",
-            result.rowcount,
+            len(rows),
         )
 
 

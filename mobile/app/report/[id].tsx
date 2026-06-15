@@ -7,6 +7,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -245,6 +246,14 @@ export default function ReportDetail() {
             )}
           </GlassCard>
 
+          {api.photoUrl(report.photo_url) ? (
+            <Image
+              source={{ uri: api.photoUrl(report.photo_url)! }}
+              style={styles.photo}
+              resizeMode="cover"
+            />
+          ) : null}
+
           <View style={styles.row}>
             <Stat label="Conferme" value={report.confirms} color={colors.success} />
             <Stat label="Smentite" value={report.denials} color={colors.danger} />
@@ -383,6 +392,12 @@ const styles = StyleSheet.create({
   counter: { alignSelf: "flex-end", color: colors.textMuted, fontSize: font.tiny },
   editActions: { flexDirection: "row", gap: spacing.md },
   editBtn: { flex: 1 },
+  photo: {
+    width: "100%",
+    height: 200,
+    borderRadius: radius.lg,
+    backgroundColor: colors.glassInput,
+  },
   row: { flexDirection: "row", gap: spacing.lg },
   stat: { flex: 1 },
   statInner: { paddingVertical: spacing.xl, alignItems: "center" },

@@ -25,6 +25,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      # le foto delle segnalazioni persistono fuori dal container
+      - media:/app/media
     expose:
       - "8000"
     ports:
@@ -41,3 +44,4 @@ services:
 
 volumes:
   pgdata:
+  media:

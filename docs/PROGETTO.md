@@ -124,6 +124,9 @@ Concetti chiave:
 - **Categorie emergenza**: allagamento, frana, strada interrotta, albero/ostacolo,
   incendio, black-out, persona in difficoltà, punto di raccolta, presidio,
   allerta meteo.
+- **Foto geolocalizzata**: si può allegare una foto alla segnalazione (scatto o
+  galleria); lato server è re-encodata in JPEG, **EXIF rimossi** (privacy) e
+  ridimensionata. Visibile nel dettaglio.
 
 ---
 
@@ -150,6 +153,7 @@ Concetti chiave:
 | category | varchar(40) | chiave da lista chiusa |
 | author_role | varchar(20) (def cittadino) | ruolo autore (denormalizzato → badge "verificata") |
 | note | varchar(280) null | testo libero |
+| photo_path | varchar(255) null | URL relativo foto (es. /media/reports/{uuid}.jpg) |
 | geom | geography(Point,4326) | posizione (GIST index) |
 | created_at | timestamptz | |
 | expires_at | timestamptz | **cuore del "live"** |
@@ -192,6 +196,7 @@ Base: `https://zone.delibra.info` (prod) — auth via header
 | GET | `/reports/{id}` | Dettaglio (deep link) |
 | POST | `/reports/{id}/vote` | Vota (`+1` / `-1`) |
 | POST | `/reports/{id}/flag` | Segnala abuso (`reason`: spam/offensivo/falso/altro) |
+| POST | `/reports/{id}/photo` | Allega foto (multipart, solo autore; re-encode JPEG + strip EXIF) |
 | GET | `/reports/stream` | SSE: `created` / `updated` / `removed` |
 | PUT | `/users/push-token` | Registra Expo push token |
 | DELETE | `/users/push-token` | Disattiva push + azzera posizione (logout) |
@@ -297,10 +302,12 @@ backend/
     jobs.py            # APScheduler: scadenza + retention
     routers/           # auth, reports, stream (SSE), users
     services/
-      reports.py       # TTL, voto, anti-abuso, flag, query PostGIS
+      reports.py       # TTL, voto, anti-abuso, flag, foto, query PostGIS
       account.py       # cancellazione account (diritto all'oblio)
+      photos.py        # upload foto: validazione, re-encode JPEG, strip EXIF
       notify.py        # push Expo (dietro flag)
-  alembic/             # migrazioni (0001…0003_report_flags, 0004_roles)
+  alembic/             # migrazioni (0001…0004_roles, 0005_report_photo)
+  media/               # foto delle segnalazioni (volume montato, fuori dal repo)
   Dockerfile
   entrypoint.sh        # attende DB, applica migrazioni, avvia API
 proxy/nginx.conf       # reverse proxy SSE-friendly (/reports/stream)

@@ -43,6 +43,13 @@
         }
       ],
       "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "L'app accede alle foto per allegare un'immagine a una segnalazione.",
+          "cameraPermission": "L'app usa la fotocamera per allegare una foto a una segnalazione."
+        }
+      ],
       "expo-asset",
       [
         "expo-splash-screen",

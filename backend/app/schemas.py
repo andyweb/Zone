@@ -71,6 +71,8 @@ class ReportOut(BaseModel):
     # Ruolo dell'autore e flag "verificata" (fonte accreditata PC).
     author_role: str = "cittadino"
     verified: bool = False
+    # URL (relativo) della foto allegata, se presente.
+    photo_url: str | None = None
     # True solo nella risposta di dettaglio quando il richiedente è l'autore:
     # abilita modifica/eliminazione lato client.
     is_mine: bool = False

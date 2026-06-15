@@ -7,12 +7,17 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .jobs import shutdown_scheduler, start_scheduler
 from .routers import auth, reports, stream, users
 
 _PAGE_PATH = Path(__file__).parent / "static" / "page.html"
+
+# Storage foto: la directory deve esistere prima di montare StaticFiles.
+_MEDIA_DIR = Path(settings.media_dir)
+(_MEDIA_DIR / "reports").mkdir(parents=True, exist_ok=True)
 
 
 @asynccontextmanager
@@ -30,6 +35,13 @@ app.include_router(auth.router)
 app.include_router(reports.router)
 app.include_router(stream.router)
 app.include_router(users.router)
+
+# Foto delle segnalazioni servite come file statici (dietro il proxy/Cloudflare).
+app.mount(
+    settings.media_url_prefix,
+    StaticFiles(directory=settings.media_dir),
+    name="media",
+)
 
 
 @app.get("/health", tags=["meta"])

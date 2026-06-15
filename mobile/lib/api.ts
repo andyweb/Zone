@@ -130,6 +130,43 @@ export function deleteReport(token: string, reportId: number): Promise<void> {
   return request<void>(`/reports/${reportId}`, { method: "DELETE", token });
 }
 
+// Carica/sostituisce la foto della propria segnalazione (multipart).
+// Non impostiamo Content-Type a mano: fetch aggiunge il boundary corretto.
+export async function uploadReportPhoto(
+  token: string,
+  reportId: number,
+  asset: { uri: string; mimeType?: string | null; fileName?: string | null },
+): Promise<Report> {
+  const form = new FormData();
+  form.append("file", {
+    uri: asset.uri,
+    name: asset.fileName ?? "photo.jpg",
+    type: asset.mimeType ?? "image/jpeg",
+  } as unknown as Blob);
+
+  const res = await fetch(`${API_URL}/reports/${reportId}/photo`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      detail = (await res.json())?.detail ?? detail;
+    } catch {
+      // corpo non JSON
+    }
+    throw new ApiError(res.status, typeof detail === "string" ? detail : "Errore");
+  }
+  return (await res.json()) as Report;
+}
+
+// URL assoluto di una foto a partire dal path relativo restituito dal backend.
+export function photoUrl(path?: string | null): string | null {
+  if (!path) return null;
+  return path.startsWith("http") ? path : `${API_URL}${path}`;
+}
+
 // Segnala un abuso su una segnalazione altrui (moderazione community).
 export function flagReport(
   token: string,

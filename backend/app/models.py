@@ -68,6 +68,8 @@ class Report(Base):
         String(20), nullable=False, server_default="cittadino"
     )
     note: Mapped[str | None] = mapped_column(String(280))
+    # URL relativo della foto allegata (es. /media/reports/<uuid>.jpg), opzionale.
+    photo_path: Mapped[str | None] = mapped_column(String(255))
     geom: Mapped[object] = mapped_column(
         Geography(geometry_type="POINT", srid=4326), nullable=False
     )

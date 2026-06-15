@@ -19,6 +19,7 @@ from ..models import Report, ReportFlag, ReportVote, User
 from ..moderation import find_blocked
 from ..roles import is_verified
 from ..schemas import FlagOut, ReportOut
+from .photos import delete_report_photo
 
 
 def _now() -> datetime:
@@ -74,6 +75,7 @@ def report_to_out(
         seconds_left=_seconds_left(report.expires_at),
         author_role=report.author_role,
         verified=is_verified(report.author_role),
+        photo_url=report.photo_path,
         is_mine=is_mine,
     )
 
@@ -180,7 +182,7 @@ async def nearby_reports(
     radius_m = min(max(radius_m, 1), settings.nearby_max_radius_m)
     sql = text(
         """
-        SELECT id, category, author_role, note, confirms, denials, status,
+        SELECT id, category, author_role, note, photo_path, confirms, denials, status,
                (user_id = :uid) AS is_mine,
                ST_Y(geom::geometry) AS lat,
                ST_X(geom::geometry) AS lon,
@@ -214,6 +216,7 @@ async def nearby_reports(
             seconds_left=max(0, int(r["seconds_left"])),
             author_role=r["author_role"],
             verified=is_verified(r["author_role"]),
+            photo_url=r["photo_path"],
             is_mine=bool(r["is_mine"]),
         )
         for r in rows
@@ -295,9 +298,11 @@ async def delete_report(
 
     # Coordinate prima della cancellazione (servono per il filtro SSE per area).
     lat, lon = await _report_coords(session, report_id)
+    photo_path = report.photo_path
     await session.delete(report)  # i voti spariscono per ON DELETE CASCADE
     await session.commit()
 
+    delete_report_photo(photo_path)  # rimuove anche il file dal disco
     await broker.publish("removed", lat, lon, {"report_id": report_id})
 
 
@@ -357,6 +362,46 @@ async def vote_report(
     payload = {"report_id": report.id} if removed else {"report": out.model_dump()}
     await broker.publish(event, lat, lon, payload)
     return out
+
+
+async def require_owned_active(
+    session: AsyncSession, user: User, report_id: int
+) -> Report:
+    """Carica la segnalazione e verifica che sia attiva e dell'utente.
+
+    Usata prima di operazioni dell'autore (es. upload foto). Solleva 404/403.
+    """
+    report = await session.get(Report, report_id)
+    if report is None or report.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="segnalazione inesistente o non più attiva",
+        )
+    if report.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="puoi modificare solo le tue segnalazioni",
+        )
+    return report
+
+
+async def set_report_photo(
+    session: AsyncSession, report: Report, photo_path: str
+) -> ReportOut:
+    """Associa una foto (già salvata su disco) alla segnalazione e notifica via
+    SSE. Se ne esisteva una precedente, la rimuove dal disco."""
+    old = report.photo_path
+    report.photo_path = photo_path
+    await session.commit()
+    await session.refresh(report)
+
+    if old and old != photo_path:
+        delete_report_photo(old)
+
+    lat, lon = await _report_coords(session, report.id)
+    broadcast = report_to_out(report, lat, lon)
+    await broker.publish("updated", lat, lon, {"report": broadcast.model_dump()})
+    return report_to_out(report, lat, lon, is_mine=True)
 
 
 async def flag_report(

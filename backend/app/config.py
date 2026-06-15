@@ -62,6 +62,16 @@ class Settings(BaseSettings):
     push_location_max_age_minutes: int = 60
     expo_push_url: str = "https://exp.host/--/api/v2/push/send"
 
+    # --- Foto segnalazioni ---
+    # Directory di storage (montata su un volume in compose) e prefisso URL con
+    # cui le foto sono servite (StaticFiles). Le immagini sono re-encodate in
+    # JPEG: questo rimuove i metadati EXIF (privacy: niente GPS nascosto).
+    media_dir: str = "/app/media"
+    media_url_prefix: str = "/media"
+    photo_max_bytes: int = 6 * 1024 * 1024   # 6 MB sull'upload grezzo
+    photo_max_dimension: int = 1600          # lato lungo max dopo il downscale
+    photo_jpeg_quality: int = 82
+
     # --- Ruoli / accreditamento (verticale Protezione Civile) ---
     # Codici distribuiti dall'ente per accreditare volontari/operatori in fase
     # di registrazione. Se None, nessuno può ottenere quel ruolo (fail-safe).

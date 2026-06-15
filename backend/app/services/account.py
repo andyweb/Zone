@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..broker import broker
 from ..models import User
+from .photos import delete_report_photo
 
 
 async def delete_account(session: AsyncSession, user: User) -> None:
@@ -48,14 +49,20 @@ async def delete_account(session: AsyncSession, user: User) -> None:
         text("DELETE FROM report_flags WHERE user_id = :uid"), {"uid": user_id}
     )
     # 2) segnalazioni dell'utente: i loro voti/flag spariscono per CASCADE.
-    await session.execute(
-        text("DELETE FROM reports WHERE user_id = :uid"), {"uid": user_id}
-    )
+    #    Recuperiamo i path foto per cancellare anche i file dal volume.
+    deleted = (
+        await session.execute(
+            text("DELETE FROM reports WHERE user_id = :uid RETURNING photo_path"),
+            {"uid": user_id},
+        )
+    ).mappings().all()
     # 3) infine l'utente: nessun riferimento residuo.
     await session.execute(
         text("DELETE FROM users WHERE id = :uid"), {"uid": user_id}
     )
     await session.commit()
 
+    for r in deleted:
+        delete_report_photo(r["photo_path"])
     for r in active:
         await broker.publish("removed", r["lat"], r["lon"], {"report_id": r["id"]})
